@@ -61,12 +61,12 @@ flowchart TB
 
 ## Status
 
-**Day 3** — Level 0 in progress.
+**Day 4** — Level 0 in progress.
 
 - [x] Day 1 — repo scaffolding, ADR-0001, infra skeleton, running doc v1, CI
 - [x] Day 2 — campaign-service
 - [x] Day 3 — ad-decision-service
-- [ ] Day 4 — event-service + observability
+- [x] Day 4 — event-service + observability
 - [ ] Day 5 — traffic-simulator + failure injection
 
 ## Quickstart
@@ -81,8 +81,9 @@ docker compose up -d --build # start the stack
 |---|---|
 | campaign-service API docs | http://localhost:8001/docs |
 | ad-decision-service API docs | http://localhost:8002/docs |
+| event-service API docs | http://localhost:8003/docs |
 | Prometheus | http://localhost:9090 |
-| Grafana | http://localhost:3000 |
+| Grafana (BELLWETHER folder — dashboards provisioned from `infra/grafana/`) | http://localhost:3000 |
 
 Postgres is published on host port 5433 and Redis on 6380, so the stack does not
 collide with other local database instances.
