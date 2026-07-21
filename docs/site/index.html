@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADS-NEXUS — Build Log</title>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "dark" });
+</script>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; max-width: 960px; padding: 2rem 1.25rem 4rem;
+    background: #0b0b0f; color: #e5e5e5;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+  }
+  h1 { color: #e50914; font-size: 2.6rem; margin: 0 0 .25rem; letter-spacing: -.02em; }
+  h2 { color: #fff; border-bottom: 2px solid #e50914; padding-bottom: .35rem; margin-top: 3rem; }
+  h3 { color: #e5e5e5; }
+  a { color: #f5c518; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .muted { color: #8a8a94; font-size: .85rem; }
+  .tagline { font-size: 1.15rem; color: #b8b8c0; margin: 0 0 .75rem; }
+  .links { margin: 1rem 0; }
+  .links a { margin-right: 1.25rem; }
+  .card {
+    border: 1px solid #2a2a33; border-radius: 12px; padding: 1.25rem;
+    margin: 1rem 0; background: #121218;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .92rem; }
+  th { text-align: left; color: #b8b8c0; border-bottom: 1px solid #3a3a44; padding: .45rem .6rem; }
+  td { border-bottom: 1px solid #1e1e26; padding: .45rem .6rem; }
+  tr:hover td { background: #16161e; }
+  pre.mermaid { background: #121218; border: 1px solid #2a2a33; border-radius: 12px; padding: 1rem; overflow-x: auto; }
+  .status-done { color: #46d369; }
+  .status-planned { color: #8a8a94; }
+  footer { margin-top: 4rem; border-top: 1px solid #2a2a33; padding-top: 1rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ADS-NEXUS</h1>
+  <p class="tagline">An AI-native engineering platform for ad-tech teams — built in public, 30 days.</p>
+  <p class="muted">ADS-NEXUS is an independent open-source project, not affiliated with or endorsed by Netflix.</p>
+  <div class="links">
+    <a href="#">GitHub repo</a>
+    <a href="#">Video series</a>
+    <span class="muted">Target role: Netflix Staff AI Engineer — AI Foundation &amp; Tooling (AJRT30201)</span>
+  </div>
+</header>
+
+<section id="tracker">
+  <h2>Day tracker</h2>
+  <table>
+    <thead><tr><th>Day</th><th>Level</th><th>Deliverable</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>0</td><td>Repo, architecture docs, README, running doc v1, ADR-0001, infra skeleton, CI</td><td class="status-done">✅ shipped</td></tr>
+      <tr><td>2</td><td>0</td><td>campaign-service (CRUD, Postgres, tests, OpenAPI)</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>3</td><td>0</td><td>ad-decision-service (targeting, freq capping, brand safety, pacing)</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>4</td><td>0</td><td>event-service + observability stack (Grafana dashboards, JSON logging lib)</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>5</td><td>0</td><td>traffic-simulator + failure injection; Level 0 quality gate</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>6</td><td>1</td><td>Document ingestion pipeline</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>7</td><td>1</td><td>Chunking + embedding strategies (comparison documented)</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>8</td><td>1</td><td>Hybrid retrieval + reranking</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>9</td><td>1</td><td>AST knowledge graph + visualization</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>10</td><td>1</td><td>MCP server + retrieval eval suite; quality gate</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>11</td><td>2</td><td>Code-generation agent</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>12</td><td>2</td><td>Test-generation agent + mutation testing</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>13</td><td>2</td><td>PR pre-review agent (GitHub Actions)</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>14</td><td>2</td><td>Deployment-validation agent</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>15</td><td>2</td><td>E2E pipeline: ticket → code → test → PR → deploy; quality gate</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>16</td><td>3</td><td>Log intelligence pipeline</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>17</td><td>3</td><td>Incident triage agent</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>18</td><td>3</td><td>RCA agent</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>19</td><td>3</td><td>Guided resolution + runbook generation</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>20</td><td>3</td><td>Self-healing loop E2E demo; quality gate</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>21</td><td>4</td><td>Agent communication protocol</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>22</td><td>4</td><td>Parallel agent execution</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>23</td><td>4</td><td>Conflict resolution + escalation</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>24</td><td>4</td><td>Human-in-the-loop gates</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>25</td><td>4</td><td>Actor-Critic process-audit evals; quality gate</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>26</td><td>5</td><td>AI-first dev environment (devcontainer, one-command setup)</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>27</td><td>5</td><td>CI/CD AI gates</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>28</td><td>5</td><td>Consolidated eval dashboard</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>29</td><td>5</td><td>Grand demo (feature E2E through the whole platform)</td><td class="status-planned">⬜ planned</td></tr>
+      <tr><td>30</td><td>5</td><td>Launch: open-source release, outreach kickoff</td><td class="status-planned">⬜ planned</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="overview">
+  <h2>System overview</h2>
+  <p>The <strong>Substrate</strong> is a mini Netflix-style ads platform — four small services producing real traffic, logs, metrics, and stageable incidents. The <strong>Nexus</strong> is the AI foundation that operates on it: a grounded context layer, development and operations agents, a multi-agent orchestrator, and an eval harness that publishes numbers for every capability.</p>
+  <pre class="mermaid">
+flowchart TB
+    subgraph NEXUS["NEXUS — AI Foundation"]
+        CTX["Context Layer&lt;br/&gt;RAG + Knowledge Graph + MCP"]
+        DEV["Dev Lifecycle Agents"]
+        OPS["Ops Agents"]
+        ORCH["Multi-Agent Orchestrator"]
+        EVAL["Eval Harness + Dashboard"]
+        LLM["LLM Abstraction + Cost Tracking"]
+    end
+    subgraph SUB["SUBSTRATE — Mini Ads Platform"]
+        CS["campaign-service"]
+        ADS["ad-decision-service"]
+        EV["event-service"]
+        SIM["traffic-simulator + failure injection"]
+        OBS["Prometheus + Grafana + JSON logs"]
+    end
+    CTX --> DEV &amp; OPS
+    ORCH --> DEV &amp; OPS
+    DEV &amp; OPS --> LLM
+    EVAL -.evaluates.-> CTX &amp; DEV &amp; OPS &amp; ORCH
+    SIM --> ADS
+    ADS --> CS &amp; EV
+    SUB --> OBS
+    OBS --> OPS
+    SUB -. "code, docs, logs, metrics" .-> CTX
+  </pre>
+</section>
+
+<section id="level-0">
+  <h2>Level 0 — The Substrate (Days 1–5)</h2>
+  <p><strong>Goal:</strong> a small but production-shaped ads platform that gives every later AI capability something real to operate on — real traffic to observe, real logs and metrics to correlate, real incidents to diagnose. No mock-data theater.</p>
+
+  <h3>The ad-request path</h3>
+  <pre class="mermaid">
+sequenceDiagram
+    participant SIM as traffic-simulator
+    participant ADS as ad-decision-service
+    participant CS as campaign-service
+    participant R as Redis
+    participant EV as event-service
+    SIM->>ADS: POST /ad-request {member_ctx, slot}
+    ADS->>CS: eligible campaigns (targeting)
+    ADS->>R: frequency cap check
+    ADS->>ADS: brand-safety + budget pacing
+    ADS-->>SIM: selected ad
+    SIM->>EV: impression / click events
+    EV-->>EV: aggregate, emit metrics
+  </pre>
+
+  <h3>Day 1 — infrastructure skeleton</h3>
+  <pre class="mermaid">
+flowchart LR
+    DEVBOX["Developer machine&lt;br/&gt;uv + pytest + ruff + mypy"] -->|docker compose up| NET["ads-nexus network"]
+    NET --> PG[("Postgres 16")]
+    NET --> RD[("Redis 7")]
+    NET --> PROM["Prometheus :9090"]
+    NET --> GRAF["Grafana :3000"]
+    PROM --> GRAF
+  </pre>
+</section>
+
+<section id="decisions">
+  <h2>Decisions so far</h2>
+  <div class="card">
+    <h3>ADR-0001: Docker Compose over Kubernetes</h3>
+    <p>Four services run by one developer on one machine. Compose gives one-command startup and reproducible demos; Kubernetes would add operational overhead while proving nothing relevant to AI foundation engineering. <a href="#">Full ADR</a></p>
+  </div>
+</section>
+
+<section id="evals">
+  <h2>Eval scoreboard</h2>
+  <p class="muted">Actuals publish as each level's quality gate runs.</p>
+  <table>
+    <thead><tr><th>Level</th><th>Metric</th><th>Target</th><th>Actual</th></tr></thead>
+    <tbody>
+      <tr><td>L0</td><td>Services healthy under simulator load; failure injection works</td><td>100%</td><td>—</td></tr>
+      <tr><td>L1</td><td>Context relevance (50-query synthetic dataset)</td><td>&gt;85%</td><td>—</td></tr>
+      <tr><td>L1</td><td>Retrieval latency</td><td>&lt;500ms</td><td>—</td></tr>
+      <tr><td>L2</td><td>Generated code compiles / passes lint + types</td><td>100%</td><td>—</td></tr>
+      <tr><td>L2</td><td>Generated test pass rate; mutation score improvement</td><td>&gt;90%</td><td>—</td></tr>
+      <tr><td>L2</td><td>PR reviewer seeded-bug catch rate</td><td>measured &amp; published</td><td>—</td></tr>
+      <tr><td>L3</td><td>Synthetic incidents flagged</td><td>5/5</td><td>—</td></tr>
+      <tr><td>L3</td><td>RCA correct root cause</td><td>&gt;80%</td><td>—</td></tr>
+      <tr><td>L4</td><td>Complex tasks completed by parallel agents</td><td>3/3</td><td>—</td></tr>
+      <tr><td>L4</td><td>HITL approval acceptance rate</td><td>&gt;90%</td><td>—</td></tr>
+      <tr><td>L5</td><td>Fresh clone → running system</td><td>&lt;10 min</td><td>—</td></tr>
+      <tr><td>L5</td><td>CI/CD gates pass</td><td>100%</td><td>—</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<footer>
+  <p>Built in public. <strong>Day 1 of 30.</strong></p>
+  <p class="muted">ADS-NEXUS is an independent open-source project, not affiliated with or endorsed by Netflix.</p>
+</footer>
+
+</body>
+</html>
