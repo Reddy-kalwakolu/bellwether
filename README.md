@@ -14,9 +14,9 @@ This project is being built in public over 30 days, one deliverable per day, wit
 
 ## The name
 
-A bellwether is the lead sheep in a flock — the one fitted with a bell, whose movement the rest follow, so the shepherd can tell where the flock is going without seeing it. The word later came to mean a leading indicator: the thing you watch to know what happens next.
+**bellwether** *(noun)* — a leading indicator; the thing you watch to know where something is heading before the rest of the picture catches up. Analysts watch bellwether stocks, forecasters watch bellwether districts.
 
-Both meanings are the job. The first AI engineer on a team is the one who goes first and makes the path followable. And the eval scoreboard below is the bell — the signal that tells you whether the flock is moving somewhere good, before the whole team is standing there.
+That is the job, twice over. The first AI engineer on a team is a leading indicator of how that team will build a year from now. And the eval scoreboard is a leading indicator of whether the agents are actually making the work better — measured early, while there is still time to change course.
 
 ## Architecture
 
