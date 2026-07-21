@@ -35,14 +35,19 @@ def session() -> Iterator[Session]:
 
 @pytest.fixture
 def client(session: Session) -> Iterator[TestClient]:
-    """A TestClient whose requests run against the in-memory session."""
+    """A TestClient whose requests run against the in-memory session.
+
+    The client is built without entering its context manager on purpose: doing so
+    would run the app lifespan, which provisions the schema on the real Postgres
+    engine. Tests supply their own schema and session, so reaching for a live
+    database would make the suite depend on infrastructure it does not need.
+    """
 
     def override() -> Iterator[Session]:
         yield session
 
     app.dependency_overrides[get_session] = override
-    with TestClient(app) as test_client:
-        yield test_client
+    yield TestClient(app)
     app.dependency_overrides.clear()
 
 
