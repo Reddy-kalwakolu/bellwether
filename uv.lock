@@ -7,7 +7,7 @@ resolution-markers = [
 ]
 
 [[package]]
-name = "ads-nexus"
+name = "bellwether"
 version = "0.1.0"
 source = { virtual = "." }
 

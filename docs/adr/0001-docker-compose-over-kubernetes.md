@@ -4,7 +4,7 @@
 **Status:** Accepted
 
 ## Context
-The ADS-NEXUS substrate is four small services plus an observability stack, run by one developer on one machine and demoed in daily videos. Netflix-style architecture signals matter to this project — but so does Staff-level pragmatism: choosing infrastructure proportionate to the problem is itself the signal.
+The BELLWETHER substrate is four small services plus an observability stack, run by one developer on one machine and demoed in daily videos. Netflix-style architecture signals matter to this project — but so does Staff-level pragmatism: choosing infrastructure proportionate to the problem is itself the signal.
 
 ## Decision
 Docker Compose orchestrates all local infrastructure and services. No Kubernetes anywhere in the project.

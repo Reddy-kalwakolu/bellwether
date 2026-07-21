@@ -1,4 +1,4 @@
-# ADS-NEXUS Coding Standards
+# BELLWETHER Coding Standards
 
 These rules are checkable. The Level 2 PR pre-review agent enforces them; humans should too.
 

@@ -1,4 +1,4 @@
-# ADS-NEXUS — Design Specification
+# BELLWETHER — Design Specification
 
 **Date:** 2026-07-20
 **Status:** Approved design, pending implementation plan
@@ -8,11 +8,11 @@
 
 ## 1. Mission
 
-Build **ADS-NEXUS**: an open-source, production-grade, AI-native engineering platform that mirrors every capability in Netflix job posting AJRT30201 — built in public over ~30 days with daily YouTube videos.
+Build **BELLWETHER**: an open-source, production-grade, AI-native engineering platform that mirrors every capability in Netflix job posting AJRT30201 — built in public over ~30 days with daily YouTube videos.
 
 The narrative: *"I built a small Netflix-style ads platform, then made the team that runs it AI-native."*
 
-The differentiator: **AI velocity with provable quality.** The posting's core tension is "shipping faster without accumulating slop, regressions, or accountability gaps." Most portfolio projects demo flashy agents with no evaluation. ADS-NEXUS ships numeric evals with every level.
+The differentiator: **AI velocity with provable quality.** The posting's core tension is "shipping faster without accumulating slop, regressions, or accountability gaps." Most portfolio projects demo flashy agents with no evaluation. BELLWETHER ships numeric evals with every level.
 
 ### The five pillars of the posting (all must have working, demoable counterparts)
 
@@ -29,11 +29,11 @@ The differentiator: **AI velocity with provable quality.** The posting's core te
 Two-part system:
 
 - **The Substrate** (`substrate/`) — a mini Netflix-style ads platform: 4 Python/FastAPI microservices producing real traffic, structured logs, Prometheus metrics, and stageable incidents. Exists so the AI layer has something real to operate on. Ops demos are real, not mock-data theater.
-- **The AI Foundation** (`nexus/`) — the star: context layer, dev agents, ops agents, orchestrator, LLM abstraction, eval harness.
+- **The AI Foundation** (`bellwether/`) — the star: context layer, dev agents, ops agents, orchestrator, LLM abstraction, eval harness.
 
 ```mermaid
 flowchart TB
-    subgraph NEXUS["NEXUS — AI Foundation"]
+    subgraph BELLWETHER["BELLWETHER — AI Foundation"]
         CTX["Context Layer<br/>(RAG + Knowledge Graph + MCP server)"]
         DEV["Dev Lifecycle Agents<br/>(code gen / test gen / PR review / deploy validation)"]
         OPS["Ops Agents<br/>(triage / RCA / guided resolution)"]
@@ -242,7 +242,7 @@ Evaluation-Driven Development: metrics defined before each level is built.
 ## 8. Repository structure
 
 ```
-ads-nexus/
+bellwether/
 ├── README.md
 ├── docker-compose.yml
 ├── pyproject.toml
@@ -259,7 +259,7 @@ ads-nexus/
 │   ├── event-service/
 │   ├── traffic-simulator/
 │   └── shared/                 # logging lib, common models
-├── nexus/
+├── bellwether/
 │   ├── llm/                    # provider abstraction + cost tracking
 │   ├── context/                # ingestion, retrieval, KG, MCP server
 │   ├── agents/
@@ -270,7 +270,7 @@ ads-nexus/
 └── platform/                   # devcontainer, CI/CD workflows
 ```
 
-Note: current directory is `Netflix-build_in_public`; the repo will be published to GitHub as `ads-nexus`.
+Note: current directory is `Netflix-build_in_public`; the repo will be published to GitHub as `bellwether`.
 
 ---
 
@@ -295,7 +295,7 @@ Note: current directory is `Netflix-build_in_public`; the repo will be published
 | Technical blockers | Proven stack (FastAPI, LangGraph, ChromaDB); no experimental tech |
 | LLM API costs | Ollama for iteration; Haiku-class for tests; strong models only for recorded demos; per-call cost tracking |
 | Claude Code budget (~$10 then Opus 4.8) | This spec + per-level plans = cheap session memory; execution sessions never re-derive strategy |
-| Netflix legal/trademark | Open source, no proprietary code, clear "not affiliated" disclaimers; project name is ADS-NEXUS, not Netflix-branded |
+| Netflix legal/trademark | Open source, no proprietary code, clear "not affiliated" disclaimers; project name is BELLWETHER, not Netflix-branded |
 
 ---
 

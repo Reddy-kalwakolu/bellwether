@@ -1,8 +1,8 @@
-# ADS-NEXUS Level 0 / Day 1 — Foundation Implementation Plan
+# BELLWETHER Level 0 / Day 1 — Foundation Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship Day 1 of ADS-NEXUS: repo scaffolding with quality tooling, README, ADR-0001, Docker Compose infrastructure skeleton (Postgres, Redis, Prometheus, Grafana), CI workflow, and the HTML running doc v1 with system diagrams.
+**Goal:** Ship Day 1 of BELLWETHER: repo scaffolding with quality tooling, README, ADR-0001, Docker Compose infrastructure skeleton (Postgres, Redis, Prometheus, Grafana), CI workflow, and the HTML running doc v1 with system diagrams.
 
 **Architecture:** Python monorepo managed with `uv` (single root `pyproject.toml`; service packages added on later days). Infrastructure via Docker Compose. Documentation site is static HTML + Mermaid (CDN) in `docs/site/`, publishable via GitHub Pages.
 
@@ -14,8 +14,8 @@
 - Lint/format: ruff; types: mypy; tests: pytest (coverage target >80% once services exist)
 - Conventional commits (`feat:`, `docs:`, `chore:`, `test:`, `ci:`)
 - Use ads-domain language from the spec (ad insertion, brand safety, frequency capping, pacing)
-- Every user-facing doc carries: "ADS-NEXUS is an independent open-source project, not affiliated with or endorsed by Netflix."
-- Working directory: `C:\Users\Kcpre\OneDrive\Desktop\Netflix-build_in_public` (repo will be published to GitHub as `ads-nexus`)
+- Every user-facing doc carries: "BELLWETHER is an independent open-source project, not affiliated with or endorsed by Netflix."
+- Working directory: `C:\Users\Kcpre\OneDrive\Desktop\Netflix-build_in_public` (repo will be published to GitHub as `bellwether`)
 - End of day: update `docs/site/index.html` day tracker + write `docs/devlog/` entry (definition of done)
 
 ---
@@ -32,7 +32,7 @@
 
 ```toml
 [project]
-name = "ads-nexus"
+name = "bellwether"
 version = "0.1.0"
 description = "AI-native engineering platform for ad-tech teams: context layer, dev & ops agents, orchestration, evals - operating on a mini Netflix-style ads substrate."
 requires-python = ">=3.11"
@@ -54,7 +54,6 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "ANN"]
-ignore = ["ANN101", "ANN102"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -63,7 +62,7 @@ strict = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
-# NOTE: add "substrate" and "nexus" to testpaths when those packages appear (Day 2+)
+# NOTE: add "substrate" and "bellwether" to testpaths when those packages appear (Day 2+)
 ```
 
 - [ ] **Step 2: Create `.gitignore`**
@@ -115,10 +114,10 @@ def test_toolchain_alive() -> None:
 - [ ] **Step 5: Create `README.md`**
 
 Write the README with exactly these sections (prose to be written by executor, ~120 lines max):
-1. `# ADS-NEXUS` + one-line tagline: "An AI-native engineering platform for ad-tech teams — built in public."
+1. `# BELLWETHER` + one-line tagline: "An AI-native engineering platform for ad-tech teams — built in public."
 2. Badges placeholder row (CI badge added after first push)
-3. **What is this?** — 3 short paragraphs: (a) the two-part system (Substrate = mini Netflix-style ads platform; Nexus = AI foundation: context layer, dev agents, ops agents, orchestrator, evals), (b) the thesis: AI velocity with provable quality — every AI capability ships with numeric evals, (c) built in public over 30 days, link to video series (placeholder link).
-4. **Architecture** — embed the system-overview Mermaid diagram copied verbatim from `docs/superpowers/specs/2026-07-20-ads-nexus-design.md` section 2.
+3. **What is this?** — 3 short paragraphs: (a) the two-part system (Substrate = mini Netflix-style ads platform; Bellwether = AI foundation: context layer, dev agents, ops agents, orchestrator, evals), (b) the thesis: AI velocity with provable quality — every AI capability ships with numeric evals, (c) built in public over 30 days, link to video series (placeholder link).
+4. **Architecture** — embed the system-overview Mermaid diagram copied verbatim from `docs/superpowers/specs/2026-07-20-bellwether-design.md` section 2.
 5. **The 30-day roadmap** — compact 6-row table (level, days, theme) copied from spec section 5.
 6. **Status** — "Day 1: Foundation" with checklist of Level 0 days.
 7. **Quickstart** — `uv sync --group dev`, `uv run pytest`, `docker compose up -d`.
@@ -190,7 +189,7 @@ What becomes easier, what becomes harder.
 - [ ] **Step 2: Create `docs/adr/0001-docker-compose-over-kubernetes.md`**
 
 Using the template. Content requirements:
-- **Context:** ADS-NEXUS substrate is 4 small services + observability, run by one developer on one machine, demoed in videos; Netflix-style architecture signals matter, but so does Staff-level pragmatism.
+- **Context:** BELLWETHER substrate is 4 small services + observability, run by one developer on one machine, demoed in videos; Netflix-style architecture signals matter, but so does Staff-level pragmatism.
 - **Decision:** Docker Compose for all local orchestration. Accepted.
 - **Alternatives:** Kubernetes (kind/minikube) — rejected: operational overhead, slower demos, zero additional proof of AI-engineering skill (the job is AI foundation, not cluster ops). Bare processes — rejected: no service isolation, no one-command setup, breaks the `<10 min` clone-to-running quality gate.
 - **Consequences:** one-command startup, trivially reproducible in videos; if the project ever needs multi-node scale, Compose files translate cleanly to k8s manifests.
@@ -222,24 +221,24 @@ git commit -m "docs: ADR template, ADR-0001 (Compose over k8s), coding standards
 - Create: `docker-compose.yml`, `infra/prometheus/prometheus.yml`, `infra/grafana/provisioning/datasources/prometheus.yml`
 
 **Interfaces:**
-- Produces: running Postgres at `localhost:5433` (user/pass/db: `nexus`/`nexus`/`nexus`; in-network `postgres:5432`), Redis at `localhost:6380` (in-network `redis:6379`), Prometheus at `localhost:9090`, Grafana at `localhost:3000` (anonymous admin). Day 2+ services attach to the `ads-nexus` network and get scraped by adding jobs to `infra/prometheus/prometheus.yml`.
+- Produces: running Postgres at `localhost:5433` (user/pass/db: `bellwether`/`bellwether`/`bellwether`; in-network `postgres:5432`), Redis at `localhost:6380` (in-network `redis:6379`), Prometheus at `localhost:9090`, Grafana at `localhost:3000` (anonymous admin). Day 2+ services attach to the `bellwether` network and get scraped by adding jobs to `infra/prometheus/prometheus.yml`.
 
 - [ ] **Step 1: Create `docker-compose.yml`**
 
 ```yaml
-name: ads-nexus
+name: bellwether
 
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: nexus
-      POSTGRES_PASSWORD: nexus
-      POSTGRES_DB: nexus
+      POSTGRES_USER: bellwether
+      POSTGRES_PASSWORD: bellwether
+      POSTGRES_DB: bellwether
     ports: ["5432:5432"]
     volumes: ["pgdata:/var/lib/postgresql/data"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nexus"]
+      test: ["CMD-SHELL", "pg_isready -U bellwether"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -273,7 +272,7 @@ volumes:
 
 networks:
   default:
-    name: ads-nexus
+    name: bellwether
 ```
 
 - [ ] **Step 2: Create `infra/prometheus/prometheus.yml`**
@@ -335,7 +334,7 @@ git commit -m "feat: infra skeleton - postgres, redis, prometheus, grafana via c
 
 Single self-contained file. Requirements (executor writes the HTML; all diagram code below is mandatory and verbatim):
 
-**Head:** `<title>ADS-NEXUS — Build Log</title>`; Mermaid via CDN:
+**Head:** `<title>BELLWETHER — Build Log</title>`; Mermaid via CDN:
 ```html
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
@@ -347,15 +346,15 @@ Single self-contained file. Requirements (executor writes the HTML; all diagram 
 
 **Body sections, in order:**
 
-1. **Hero:** `ADS-NEXUS` title, tagline "An AI-native engineering platform for ad-tech teams — built in public, 30 days.", the not-affiliated disclaimer in small muted text, links: GitHub repo (placeholder `#`), video series (placeholder `#`), job posting ref "Target role: Netflix Staff AI Engineer — AI Foundation & Tooling (AJRT30201)".
+1. **Hero:** `BELLWETHER` title, tagline "An AI-native engineering platform for ad-tech teams — built in public, 30 days.", the not-affiliated disclaimer in small muted text, links: GitHub repo (placeholder `#`), video series (placeholder `#`), job posting ref "Target role: Netflix Staff AI Engineer — AI Foundation & Tooling (AJRT30201)".
 
 2. **Day tracker:** table with columns Day | Level | Deliverable | Status. Pre-fill all 30 rows from spec section 5 tables. Day 1 status: `✅ shipped`; all others `⬜ planned`.
 
-3. **System overview:** heading + prose (2 sentences: substrate vs nexus) + this diagram verbatim in `<pre class="mermaid">`:
+3. **System overview:** heading + prose (2 sentences: substrate vs bellwether) + this diagram verbatim in `<pre class="mermaid">`:
 
 ```
 flowchart TB
-    subgraph NEXUS["NEXUS — AI Foundation"]
+    subgraph BELLWETHER["BELLWETHER — AI Foundation"]
         CTX["Context Layer<br/>RAG + Knowledge Graph + MCP"]
         DEV["Dev Lifecycle Agents"]
         OPS["Ops Agents"]
@@ -403,7 +402,7 @@ sequenceDiagram
 Day 1 infrastructure:
 ```
 flowchart LR
-    DEVBOX["Developer machine<br/>uv + pytest + ruff + mypy"] -->|docker compose up| NET["ads-nexus network"]
+    DEVBOX["Developer machine<br/>uv + pytest + ruff + mypy"] -->|docker compose up| NET["bellwether network"]
     NET --> PG[("Postgres 16")]
     NET --> RD[("Redis 7")]
     NET --> PROM["Prometheus :9090"]
@@ -509,5 +508,5 @@ git commit -m "ci: quality pipeline; docs: day-01 devlog"
 
 ## Post-plan notes for the executor
 
-- After Task 5, the user should create the GitHub repo (`ads-nexus`), add the remote, push, and enable GitHub Pages (deploy from `main`, `/docs` folder or Actions) — user action, not executor.
+- After Task 5, the user should create the GitHub repo (`bellwether`), add the remote, push, and enable GitHub Pages (deploy from `main`, `/docs` folder or Actions) — user action, not executor.
 - Day 2 plan (campaign-service) is written fresh in the next session from spec section 3 — do not start Day 2 work from this plan.

@@ -1,5 +1,5 @@
 [project]
-name = "ads-nexus"
+name = "bellwether"
 version = "0.1.0"
 description = "AI-native engineering platform for ad-tech teams: context layer, dev & ops agents, orchestration, evals - operating on a mini Netflix-style ads substrate."
 requires-python = ">=3.11"
@@ -29,4 +29,4 @@ strict = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
-# NOTE: add "substrate" and "nexus" to testpaths when those packages appear (Day 2+)
+# NOTE: add "substrate" and "bellwether" to testpaths when those packages appear (Day 2+)

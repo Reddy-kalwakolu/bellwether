@@ -1,4 +1,4 @@
-# ADS-NEXUS
+# BELLWETHER
 
 **An AI-native engineering platform for ad-tech teams — built in public.**
 
@@ -6,17 +6,23 @@
 
 ## What is this?
 
-ADS-NEXUS is a two-part system. The **Substrate** is a mini Netflix-style ads platform — four Python microservices (campaign management, ad decisioning, event tracking, traffic simulation) producing real traffic, structured logs, Prometheus metrics, and stageable incidents. The **Nexus** is the star: an AI foundation layer that operates on the substrate — a centralized context layer (RAG + knowledge graph), development lifecycle agents (code gen, test gen, PR pre-review, deployment validation), operational intelligence agents (incident triage, root cause analysis, guided resolution), a multi-agent orchestrator, and an evaluation harness.
+BELLWETHER is a two-part system. The **Substrate** is a mini Netflix-style ads platform — four Python microservices (campaign management, ad decisioning, event tracking, traffic simulation) producing real traffic, structured logs, Prometheus metrics, and stageable incidents. **Bellwether** itself is the star: an AI foundation layer that operates on the substrate — a centralized context layer (RAG + knowledge graph), development lifecycle agents (code gen, test gen, PR pre-review, deployment validation), operational intelligence agents (incident triage, root cause analysis, guided resolution), a multi-agent orchestrator, and an evaluation harness.
 
 The thesis: **AI velocity with provable quality.** Agentic tooling is easy to demo and hard to trust. Every AI capability in this repo ships with numeric evaluations — retrieval relevance scores, seeded-bug catch rates, RCA accuracy — so speed never outruns accountability.
 
 This project is being built in public over 30 days, one deliverable per day, with a daily video series. <!-- video series link TBA -->
 
+## The name
+
+A bellwether is the lead sheep in a flock — the one fitted with a bell, whose movement the rest follow, so the shepherd can tell where the flock is going without seeing it. The word later came to mean a leading indicator: the thing you watch to know what happens next.
+
+Both meanings are the job. The first AI engineer on a team is the one who goes first and makes the path followable. And the eval scoreboard below is the bell — the signal that tells you whether the flock is moving somewhere good, before the whole team is standing there.
+
 ## Architecture
 
 ```mermaid
 flowchart TB
-    subgraph NEXUS["NEXUS — AI Foundation"]
+    subgraph BELLWETHER["BELLWETHER — AI Foundation"]
         CTX["Context Layer<br/>(RAG + Knowledge Graph + MCP server)"]
         DEV["Dev Lifecycle Agents<br/>(code gen / test gen / PR review / deploy validation)"]
         OPS["Ops Agents<br/>(triage / RCA / guided resolution)"]
@@ -73,11 +79,11 @@ docker compose up -d     # start infra (Postgres, Redis, Prometheus, Grafana)
 
 ## Docs
 
-- [Design specification](docs/superpowers/specs/2026-07-20-ads-nexus-design.md)
+- [Design specification](docs/superpowers/specs/2026-07-20-bellwether-design.md)
 - [Architecture Decision Records](docs/adr/)
 - [Running doc (living explainer with diagrams)](docs/site/index.html)
 - [Daily devlog](docs/devlog/)
 
 ## Disclaimer
 
-ADS-NEXUS is an independent open-source project, not affiliated with or endorsed by Netflix.
+BELLWETHER is an independent open-source project, not affiliated with or endorsed by Netflix.

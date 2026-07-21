@@ -17,7 +17,7 @@
 
 ## For the video
 1. The empty folder → `git log` showing the day's commits (the arc of Day 1)
-2. README architecture diagram rendered on GitHub — explain Substrate vs Nexus in 60 seconds
+2. README architecture diagram rendered on GitHub — explain Substrate vs Bellwether in 60 seconds
 3. `docker compose up -d` → `docker compose ps` all healthy (one command, four services)
 4. Grafana at localhost:3000 already wired to Prometheus (provisioned, not clicked together)
 5. The running doc in the browser: day tracker, diagrams, eval scoreboard with empty Actuals — "these numbers are the whole point of this series"
