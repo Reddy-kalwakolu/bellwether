@@ -8,22 +8,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<script type="module">
-  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
-  mermaid.initialize({ startOnLoad: true, theme: "base", themeVariables: {
-      darkMode: true,
-      background: "#131318",
-      primaryColor: "#1c1c24",
-      primaryTextColor: "#eaeaef",
-      primaryBorderColor: "#3a3a46",
-      secondaryColor: "#1c1c24",
-      tertiaryColor: "#16161d",
-      lineColor: "#6b6b78",
-      textColor: "#c9c9d2",
-      fontFamily: "JetBrains Mono, monospace",
-      fontSize: "13px"
-    } });
-</script>
 <style>
   :root {
     --ink: #0a0a0d;
@@ -295,83 +279,84 @@
   .prin h3 { margin: 0 0 .35rem; font-size: 1rem; }
   .prin p { margin: 0; color: var(--dim); font-size: .91rem; }
 
-  /* ---------- mermaid ---------- */
-  pre.mermaid {
-    background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
-    padding: 1.2rem; overflow-x: auto; margin: 1.5rem 0; text-align: center;
+  /* ---------- diagrams, hand-built ----------
+     Deliberately not mermaid. A renderer that isolates its output cannot be styled
+     from this page, which left diagram text invisible against default light node
+     fills. These are plain elements, so their contrast cannot drift. */
+  .diagram {
+    border: 1px solid var(--line); border-radius: var(--r); background: var(--panel);
+    padding: 1.5rem 1.25rem; margin: 1.5rem 0;
   }
-  pre.mermaid svg { max-width: 100%; height: auto; }
+  .diagram-cap {
+    font-family: var(--font-m); font-size: .62rem; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--dimmer); text-align: center; margin: 0 0 1.2rem;
+  }
+  .tier { display: flex; flex-wrap: wrap; gap: .7rem; justify-content: center; }
+  .nodebox {
+    border: 1px solid var(--line2); border-radius: 7px; background: var(--panel2);
+    padding: .7rem .95rem; min-width: 165px; flex: 0 1 auto;
+  }
+  .nodebox .nm { font-family: var(--font-m); font-size: .79rem; color: var(--text); font-weight: 600; }
+  .nodebox .nm i { font-style: normal; color: var(--dimmer); font-weight: 400; }
+  .nodebox .sub { font-size: .74rem; color: var(--dimmer); margin-top: .2rem; line-height: 1.45; }
+  .nodebox.sig { border-color: color-mix(in srgb, var(--signal) 50%, transparent); }
+  .nodebox.store { background: #10101a; border-style: dashed; }
 
-  /* Renderers may ignore an inline %%{init}%% theme directive, which leaves mermaid's
-     light default fills under this page's light text — invisible until selected.
-     These rules pin both sides. !important is required: mermaid injects its own
-     <style> with id-scoped selectors into the SVG, which out-specifies plain rules. */
-  pre.mermaid .node rect,
-  pre.mermaid .node circle,
-  pre.mermaid .node ellipse,
-  pre.mermaid .node polygon,
-  pre.mermaid .node path,
-  pre.mermaid .cluster rect,
-  pre.mermaid rect.actor,
-  pre.mermaid .actor,
-  pre.mermaid .labelBox,
-  pre.mermaid .note,
-  pre.mermaid .er.entityBox,
-  pre.mermaid .er.attributeBoxEven,
-  pre.mermaid .er.attributeBoxOdd {
-    fill: #16161d !important;
-    stroke: #33333d !important;
-  }
-
-  pre.mermaid text,
-  pre.mermaid tspan,
-  pre.mermaid .nodeLabel,
-  pre.mermaid .label,
-  pre.mermaid .messageText,
-  pre.mermaid .loopText,
-  pre.mermaid .noteText,
-  pre.mermaid .titleText,
-  pre.mermaid .er.entityLabel,
-  pre.mermaid .er.relationshipLabel,
-  pre.mermaid .er.attributeLabel {
-    fill: #eaeaef !important;
-    color: #eaeaef !important;
-  }
-  pre.mermaid .nodeLabel p,
-  pre.mermaid .label div,
-  pre.mermaid foreignObject div,
-  pre.mermaid foreignObject span {
-    color: #eaeaef !important;
+  .conn { display: flex; flex-direction: column; align-items: center; gap: .35rem; padding: .55rem 0; }
+  .conn .line { width: 1px; height: 14px; background: var(--line2); }
+  .conn .arw { color: var(--signal); font-size: .85rem; line-height: 1; }
+  .conn .lbls { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; }
+  .conn .lbl {
+    font-family: var(--font-m); font-size: .65rem; color: var(--dim);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: .16rem .5rem;
   }
 
-  pre.mermaid .flowchart-link,
-  pre.mermaid .messageLine0,
-  pre.mermaid .messageLine1,
-  pre.mermaid .actor-line,
-  pre.mermaid .relationshipLine,
-  pre.mermaid line {
-    stroke: #6b6b78 !important;
-    fill: none !important;
+  .edges { margin-top: 1.3rem; border-top: 1px solid var(--line); padding-top: .9rem; }
+  .edges ul { margin: 0; padding: 0; }
+  .edges li {
+    list-style: none; font-family: var(--font-m); font-size: .72rem; color: var(--dimmer);
+    padding: .22rem 0; display: flex; flex-wrap: wrap; gap: .45rem; align-items: baseline;
   }
-  pre.mermaid marker path,
-  pre.mermaid .arrowheadPath,
-  pre.mermaid defs marker * {
-    fill: #6b6b78 !important;
-    stroke: #6b6b78 !important;
-  }
+  .edges b { color: var(--text); font-weight: 500; }
+  .edges em { font-style: normal; color: var(--signal); }
 
-  /* Edge labels sit last so their dimmer treatment wins over the text rule above. */
-  pre.mermaid .edgeLabel,
-  pre.mermaid .edgeLabel p,
-  pre.mermaid .edgeLabel span,
-  pre.mermaid .edgeLabel div {
-    color: #b6b6c2 !important;
-    background: #131318 !important;
-    background-color: #131318 !important;
+  .steps { margin: 0; padding: 0; list-style: none; border-left: 1px solid var(--line2); }
+  .steps li {
+    display: grid; grid-template-columns: 30px 1fr; gap: .85rem;
+    padding: .55rem 0 .55rem 1.1rem; position: relative;
   }
-  pre.mermaid .edgeLabel rect,
-  pre.mermaid .edgeLabel foreignObject > div { fill: #131318 !important; }
-  pre.mermaid .edgeLabel text, pre.mermaid .edgeLabel tspan { fill: #b6b6c2 !important; }
+  .steps li::before {
+    content: ""; position: absolute; left: -4px; top: 1.05rem;
+    width: 7px; height: 7px; border-radius: 50%; background: var(--line2);
+  }
+  .steps li.hi::before { background: var(--signal); }
+  .steps .sn {
+    font-family: var(--font-m); font-size: .7rem; color: var(--signal);
+    font-variant-numeric: tabular-nums; padding-top: .1rem;
+  }
+  .steps .sf { font-family: var(--font-m); font-size: .77rem; color: var(--text); line-height: 1.55; }
+  .steps .sf i { font-style: normal; color: var(--signal); }
+  .steps .sf u { text-decoration: none; color: var(--dim); }
+  .steps .sd { grid-column: 2; font-size: .8rem; color: var(--dimmer); line-height: 1.5; margin-top: .15rem; }
+
+  .tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(238px, 1fr)); gap: 1rem; }
+  .tbox { border: 1px solid var(--line2); border-radius: 7px; overflow: hidden; background: var(--panel2); }
+  .tbox h5 {
+    margin: 0; padding: .55rem .85rem; background: #1c1c24; border-bottom: 1px solid var(--line);
+    font-family: var(--font-m); font-size: .74rem; color: var(--text); letter-spacing: .05em; font-weight: 600;
+  }
+  .tbox ul { list-style: none; margin: 0; padding: .35rem 0; }
+  .tbox li {
+    display: flex; justify-content: space-between; gap: .9rem; padding: .24rem .85rem;
+    font-family: var(--font-m); font-size: .71rem; color: var(--dimmer);
+  }
+  .tbox li b { color: var(--dim); font-weight: 500; }
+  .tbox li.key b { color: var(--signal); }
+  .rel {
+    margin-top: 1rem; font-family: var(--font-m); font-size: .7rem; color: var(--dim);
+    text-align: center; line-height: 1.8;
+  }
+  .rel em { font-style: normal; color: var(--signal); }
 
   footer { padding: 3rem 0 4.5rem; }
   footer .wrap { font-family: var(--font-m); font-size: .72rem; color: var(--dimmer); letter-spacing: .06em; }
@@ -395,7 +380,8 @@
     display: inline-flex; align-items: center; gap: .5rem; text-decoration: none;
     font-family: var(--font-m); font-size: .7rem; letter-spacing: .14em; text-transform: uppercase;
     color: var(--dim); border: 1px solid var(--line); border-radius: 6px;
-    padding: .45rem .75rem; margin-bottom: 1.6rem; transition: border-color .15s ease, color .15s ease;
+    padding: .45rem .75rem; margin-bottom: 1.6rem;
+    transition: border-color .15s ease, color .15s ease;
   }
   .backlink:hover { border-color: var(--signal); color: var(--text); }
 </style>
@@ -532,53 +518,86 @@
       <p>The decomposition follows the natural seams of an ads platform rather than technical layers. Each service owns one question, and each owns its own state.</p>
     </div>
 
-    <pre class="mermaid">
-%%{init: {"theme":"base","themeVariables":{"darkMode":true,"background":"#131318","primaryColor":"#1c1c24","primaryTextColor":"#eaeaef","primaryBorderColor":"#3a3a46","secondaryColor":"#1c1c24","tertiaryColor":"#16161d","lineColor":"#6b6b78","textColor":"#c9c9d2","fontFamily":"ui-monospace, monospace","fontSize":"13px"}}}%%
-flowchart TB
-    SIM["traffic-simulator :8004<br/>load + failure injection"]
-    ADS["ad-decision-service :8002<br/>the serving path"]
-    CS["campaign-service :8001<br/>system of record"]
-    EV["event-service :8003<br/>durable delivery record"]
-    PG[("Postgres :5433")]
-    RD[("Redis :6380")]
-    PROM["Prometheus :9090"]
-    GRAF["Grafana :3000"]
+    <div class="diagram">
+      <p class="diagram-cap">Signal flow &mdash; four services, two stores, one metrics path</p>
 
-    SIM -->|"POST /ad-request"| ADS
-    SIM -->|"POST /events"| EV
-    SIM -->|"PATCH /campaigns (inject failure)"| CS
-    ADS -->|"GET /campaigns?status=active"| CS
-    ADS <-->|"freq + spend counters"| RD
-    CS --> PG
-    EV --> PG
-    CS & ADS & EV & SIM -->|"/metrics"| PROM
-    PROM --> GRAF
-    </pre>
+      <div class="tier">
+        <div class="nodebox sig"><div class="nm">traffic-simulator <i>:8004</i></div><div class="sub">Seeded load + five injectable failure modes</div></div>
+      </div>
+
+      <div class="conn">
+        <span class="line"></span>
+        <span class="lbls"><span class="lbl">POST /ad-request</span><span class="lbl">POST /events</span><span class="lbl">PATCH /campaigns</span></span>
+        <span class="arw">&#9660;</span>
+      </div>
+
+      <div class="tier">
+        <div class="nodebox"><div class="nm">ad-decision-service <i>:8002</i></div><div class="sub">The serving path &mdash; six-rule chain</div></div>
+        <div class="nodebox"><div class="nm">campaign-service <i>:8001</i></div><div class="sub">System of record &mdash; campaigns, creatives</div></div>
+        <div class="nodebox"><div class="nm">event-service <i>:8003</i></div><div class="sub">Durable delivery record + rollups</div></div>
+      </div>
+
+      <div class="conn">
+        <span class="line"></span>
+        <span class="lbls"><span class="lbl">freq: / spend: counters</span><span class="lbl">SQL</span></span>
+        <span class="arw">&#9660;</span>
+      </div>
+
+      <div class="tier">
+        <div class="nodebox store"><div class="nm">Redis <i>:6380</i></div><div class="sub">Per-day decision state, 48h TTL</div></div>
+        <div class="nodebox store"><div class="nm">Postgres <i>:5433</i></div><div class="sub">campaigns &middot; creatives &middot; ad_events</div></div>
+      </div>
+
+      <div class="conn">
+        <span class="line"></span>
+        <span class="lbls"><span class="lbl">GET /metrics &mdash; scraped every 5s</span></span>
+        <span class="arw">&#9660;</span>
+      </div>
+
+      <div class="tier">
+        <div class="nodebox"><div class="nm">Prometheus <i>:9090</i></div><div class="sub">All four services registered as targets</div></div>
+        <div class="nodebox"><div class="nm">Grafana <i>:3000</i></div><div class="sub">Two dashboards, provisioned from files</div></div>
+      </div>
+
+      <div class="edges">
+        <ul>
+          <li><b>traffic-simulator</b> <em>&rarr;</em> <b>ad-decision-service</b> POST /ad-request &mdash; the serving call</li>
+          <li><b>ad-decision-service</b> <em>&rarr;</em> <b>campaign-service</b> GET /campaigns?status=active &mdash; over HTTP, never its tables</li>
+          <li><b>ad-decision-service</b> <em>&harr;</em> <b>Redis</b> read caps and spend, then record the impression</li>
+          <li><b>traffic-simulator</b> <em>&rarr;</em> <b>event-service</b> POST /events &mdash; impression and click reports</li>
+          <li><b>traffic-simulator</b> <em>&rarr;</em> <b>campaign-service</b> PATCH /campaigns &mdash; this is how a failure is injected</li>
+        </ul>
+      </div>
+    </div>
 
     <div class="prose">
       <h3>The request path, in order</h3>
       <p>One trip through the system, from opportunity to recorded fact.</p>
     </div>
 
-    <pre class="mermaid">
-%%{init: {"theme":"base","themeVariables":{"darkMode":true,"background":"#131318","primaryColor":"#1c1c24","primaryTextColor":"#eaeaef","primaryBorderColor":"#3a3a46","secondaryColor":"#1c1c24","tertiaryColor":"#16161d","lineColor":"#6b6b78","textColor":"#c9c9d2","fontFamily":"ui-monospace, monospace","fontSize":"13px"}}}%%
-sequenceDiagram
-    participant SIM as traffic-simulator
-    participant ADS as ad-decision-service
-    participant CS as campaign-service
-    participant R as Redis
-    participant EV as event-service
-    SIM->>ADS: POST /ad-request {member, slot}
-    ADS->>CS: GET /campaigns?status=active
-    CS-->>ADS: active campaigns + creatives
-    ADS->>R: impression counts + today's spend
-    ADS->>ADS: six-rule filter chain
-    ADS->>R: record impression (freq + spend)
-    ADS-->>SIM: AdDecision + full candidate trace
-    SIM->>EV: POST /events (impression)
-    SIM->>EV: POST /events (click, sometimes)
-    EV->>EV: dedupe on event_id, aggregate on read
-    </pre>
+    <div class="diagram">
+      <p class="diagram-cap">One trip &mdash; from opportunity to recorded fact</p>
+      <ol class="steps">
+        <li class="hi"><span class="sn">01</span><span class="sf">traffic-simulator <i>&rarr;</i> ad-decision-service<br><u>POST /ad-request { member, slot }</u></span>
+          <span class="sd">A member context and a slot: who is watching, and how many seconds are available.</span></li>
+        <li><span class="sn">02</span><span class="sf">ad-decision-service <i>&rarr;</i> campaign-service<br><u>GET /campaigns?status=active</u></span>
+          <span class="sd">The candidate set, read through the public API so campaign-service stays the only writer of its schema.</span></li>
+        <li><span class="sn">03</span><span class="sf">ad-decision-service <i>&rarr;</i> Redis<br><u>impression counts + today&rsquo;s spend</u></span>
+          <span class="sd">The only state the decision path reads. Day-scoped keys that expire themselves.</span></li>
+        <li class="hi"><span class="sn">04</span><span class="sf">ad-decision-service <i>&#8635;</i> the six-rule chain</span>
+          <span class="sd">Active &rarr; in flight &rarr; targeting &rarr; brand safety &rarr; frequency cap &rarr; pacing &rarr; creative fit. Each candidate drops at the first rule it fails, carrying that rule&rsquo;s name out with it.</span></li>
+        <li><span class="sn">05</span><span class="sf">ad-decision-service <i>&rarr;</i> Redis<br><u>record impression (freq + spend)</u></span>
+          <span class="sd">Only on a fill. This is what makes the next request for the same member see a higher count.</span></li>
+        <li class="hi"><span class="sn">06</span><span class="sf">ad-decision-service <i>&rarr;</i> traffic-simulator<br><u>200 AdDecision + full candidate trace</u></span>
+          <span class="sd">A fill or an explained no-fill &mdash; plus which campaign lost, and to which rule.</span></li>
+        <li><span class="sn">07</span><span class="sf">traffic-simulator <i>&rarr;</i> event-service<br><u>POST /events (impression)</u></span>
+          <span class="sd">Carries the decision&rsquo;s request_id, so every impression traces back to the decision that produced it.</span></li>
+        <li><span class="sn">08</span><span class="sf">traffic-simulator <i>&rarr;</i> event-service<br><u>POST /events (click)</u></span>
+          <span class="sd">Sometimes. A click costs the advertiser nothing here &mdash; only impressions carry a price.</span></li>
+        <li><span class="sn">09</span><span class="sf">event-service <i>&#8635;</i> dedupe, then aggregate on read</span>
+          <span class="sd">The caller&rsquo;s event_id is the primary key, so a retry collides with itself instead of double-counting.</span></li>
+      </ol>
+    </div>
 
     <div class="prose">
       <h3>The two state stores, and why there are two</h3>
@@ -626,39 +645,50 @@ sequenceDiagram
       <p>Three tables in total across the platform. Small on purpose — every field earns its place by being read by a rule.</p>
     </div>
 
-    <pre class="mermaid">
-%%{init: {"theme":"base","themeVariables":{"darkMode":true,"background":"#131318","primaryColor":"#1c1c24","primaryTextColor":"#eaeaef","primaryBorderColor":"#3a3a46","secondaryColor":"#1c1c24","tertiaryColor":"#16161d","lineColor":"#6b6b78","textColor":"#c9c9d2","fontFamily":"ui-monospace, monospace","fontSize":"13px"}}}%%
-erDiagram
-    CAMPAIGN ||--o{ CREATIVE : "carries"
-    CAMPAIGN {
-        uuid id PK
-        string advertiser
-        string status "draft|active|paused|completed"
-        int budget_micros
-        int daily_budget_micros
-        int frequency_cap_per_day
-        json targeting "countries, device_types, content_ratings"
-        json brand_safety_exclusions
-        datetime starts_at
-        datetime ends_at
-    }
-    CREATIVE {
-        uuid id PK
-        uuid campaign_id FK
-        int duration_seconds
-        string asset_url
-    }
-    AD_EVENT {
-        uuid event_id PK "caller-supplied idempotency key"
-        string event_type "impression|click"
-        uuid request_id "ties back to the decision"
-        uuid campaign_id
-        uuid creative_id
-        string member_id
-        int price_micros
-        datetime occurred_at
-    }
-    </pre>
+    <div class="diagram">
+      <p class="diagram-cap">Three tables &mdash; every field is read by a rule</p>
+      <div class="tables">
+        <div class="tbox">
+          <h5>campaigns</h5>
+          <ul>
+            <li class="key"><b>id</b><span>uuid PK</span></li>
+            <li><b>advertiser</b><span>string</span></li>
+            <li><b>status</b><span>draft|active|paused</span></li>
+            <li><b>budget_micros</b><span>int</span></li>
+            <li><b>daily_budget_micros</b><span>int</span></li>
+            <li><b>frequency_cap_per_day</b><span>int</span></li>
+            <li><b>targeting</b><span>json</span></li>
+            <li><b>brand_safety_exclusions</b><span>json</span></li>
+            <li><b>starts_at / ends_at</b><span>datetime</span></li>
+          </ul>
+        </div>
+        <div class="tbox">
+          <h5>creatives</h5>
+          <ul>
+            <li class="key"><b>id</b><span>uuid PK</span></li>
+            <li class="key"><b>campaign_id</b><span>uuid FK</span></li>
+            <li><b>name</b><span>string</span></li>
+            <li><b>duration_seconds</b><span>int</span></li>
+            <li><b>asset_url</b><span>string</span></li>
+          </ul>
+        </div>
+        <div class="tbox">
+          <h5>ad_events</h5>
+          <ul>
+            <li class="key"><b>event_id</b><span>uuid PK</span></li>
+            <li><b>event_type</b><span>impression|click</span></li>
+            <li><b>request_id</b><span>uuid</span></li>
+            <li><b>campaign_id</b><span>uuid</span></li>
+            <li><b>creative_id</b><span>uuid</span></li>
+            <li><b>member_id</b><span>string</span></li>
+            <li><b>price_micros</b><span>int</span></li>
+            <li><b>occurred_at</b><span>datetime</span></li>
+          </ul>
+        </div>
+      </div>
+      <p class="rel">campaigns <em>&#8213;&lt;</em> creatives &nbsp;&middot;&nbsp; one campaign carries many creatives, cascade delete<br>
+      ad_events.request_id <em>&rarr;</em> the decision that produced it &nbsp;&middot;&nbsp; event_id is the caller&rsquo;s idempotency key</p>
+    </div>
 
     <div class="prose">
       <p>Note what the event table stores: <code>request_id</code>. Every impression can be traced back to the exact decision that produced it, including the trace of which campaigns lost and why. That link is the reason a Level 3 root-cause agent will be able to answer "why did fill rate drop at 14:20" against evidence rather than by guessing.</p>
