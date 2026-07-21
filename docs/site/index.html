@@ -192,7 +192,7 @@
   <div class="bar-in">
     <span class="rec"><span class="rec-dot" aria-hidden="true"></span>REC</span>
     <span class="bar-title">BELLWETHER · BUILD LOG</span>
-    <span class="bar-day">DAY <b>03</b> / 30</span>
+    <span class="bar-day">DAY <b>04</b> / 30</span>
   </div>
 </div>
 
@@ -211,12 +211,12 @@
 
 <section class="pod" aria-label="30-day build timeline">
   <div class="wrap">
-    <div class="pod-head"><span>The 30-day pod</span><span>3 shipped · 27 queued</span></div>
+    <div class="pod-head"><span>The 30-day pod</span><span>4 shipped · 26 queued</span></div>
     <div class="pod-strip">
       <div class="seg shipped nohead" title="Day 1 — Repo, ADR-0001, infra skeleton, running doc v1, CI · shipped"></div>
       <div class="seg shipped nohead" title="Day 2 — campaign-service (CRUD, Postgres, tests, OpenAPI) · shipped"></div>
-      <div class="seg shipped" title="Day 3 — ad-decision-service (targeting, freq capping, brand safety, pacing) · shipped"></div>
-      <div class="seg" title="Day 4 — event-service + observability stack"></div>
+      <div class="seg shipped nohead" title="Day 3 — ad-decision-service (targeting, freq capping, brand safety, pacing) · shipped"></div>
+      <div class="seg shipped" title="Day 4 — event-service + Grafana dashboards · shipped"></div>
       <div class="seg" title="Day 5 — traffic-simulator + failure injection · Level 0 gate"></div>
       <div class="seg" title="Day 6 — document ingestion pipeline"></div>
       <div class="seg" title="Day 7 — chunking + embedding strategies"></div>
@@ -378,6 +378,30 @@ flowchart LR
     ADS -->|"freq: / spend: keys, 48h TTL"| RD[("Redis&lt;br/&gt;per-day decision state")]
     ADS --> PROM["/metrics&lt;br/&gt;ad_decisions_total&lt;br/&gt;ad_candidates_filtered_total{reason}"]
     </pre>
+
+    <h3>Day 4 — the event path</h3>
+    <p>Serving an ad is a decision; <em>reporting</em> it is a fact. Events land keyed on an id the caller chose, so a retried report collides with itself instead of inflating the numbers — idempotency enforced by the primary key, not by a check that races. Delivery numbers are then one <code>GROUP BY</code> over that table, never a second copy of the truth.</p>
+    <pre class="mermaid">
+flowchart LR
+    SIM["traffic-simulator&lt;br/&gt;(Day 5)"] -->|"POST /events"| EV["event-service"]
+    EV --> PK{"event_id already stored?"}
+    PK -->|yes| DUP["200 duplicate&lt;br/&gt;ad_events_duplicate_total"]
+    PK -->|no| INS["201 recorded&lt;br/&gt;INSERT into ad_events"]
+    INS --> MET["ad_events_total{event_type}&lt;br/&gt;ad_spend_micros_total"]
+    INS --> PGE[("Postgres&lt;br/&gt;ad_events — append only")]
+    PGE -->|"GROUP BY campaign_id"| DEL["GET /delivery&lt;br/&gt;impressions · clicks · CTR · spend"]
+    </pre>
+
+    <h3>Day 4 — what the dashboards read</h3>
+    <p>Three services, one metric vocabulary, two dashboards provisioned from files in the repo. Nothing here was clicked into existence: a fresh <code>docker compose up</code> lands on working graphs, and a hermetic test fails the build if a panel loses its query or graphs a metric no service emits.</p>
+    <pre class="mermaid">
+flowchart LR
+    CS["campaign-service&lt;br/&gt;/metrics"] --> PROM["Prometheus :9090"]
+    ADS["ad-decision-service&lt;br/&gt;/metrics"] --> PROM
+    EVS["event-service&lt;br/&gt;/metrics"] --> PROM
+    PROM --> D1["Grafana · substrate-health&lt;br/&gt;traffic · errors · p95 · targets"]
+    PROM --> D2["Grafana · ads-delivery&lt;br/&gt;fill rate · why candidates lost&lt;br/&gt;events · CTR · spend"]
+    </pre>
   </div>
 </section>
 
@@ -391,7 +415,7 @@ flowchart LR
         <tr><td class="mono">01</td><td class="mono">0</td><td>Repo, architecture docs, README, running doc v1, ADR-0001, infra skeleton, CI</td><td class="st done">● SHIPPED</td></tr>
         <tr><td class="mono">02</td><td class="mono">0</td><td>campaign-service (CRUD, Postgres, tests, OpenAPI)</td><td class="st done">● SHIPPED</td></tr>
         <tr><td class="mono">03</td><td class="mono">0</td><td>ad-decision-service (targeting, freq capping, brand safety, pacing)</td><td class="st done">● SHIPPED</td></tr>
-        <tr><td class="mono">04</td><td class="mono">0</td><td>event-service + observability stack (Grafana dashboards, JSON logging lib)</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">04</td><td class="mono">0</td><td>event-service + observability stack (Grafana dashboards, JSON logging lib)</td><td class="st done">● SHIPPED</td></tr>
         <tr><td class="mono">05</td><td class="mono">0</td><td>traffic-simulator + failure injection · Level 0 quality gate</td><td class="st plan">○ QUEUED</td></tr>
         <tr><td class="mono">06</td><td class="mono">1</td><td>Document ingestion pipeline</td><td class="st plan">○ QUEUED</td></tr>
         <tr><td class="mono">07</td><td class="mono">1</td><td>Chunking + embedding strategies (comparison documented)</td><td class="st plan">○ QUEUED</td></tr>
@@ -432,8 +456,12 @@ flowchart LR
       <p><strong>bellwether</strong> <em>(noun)</em> — a leading indicator; the thing you watch to know where something is heading before the rest of the picture catches up. That is the job twice over: the first AI engineer on a team is a leading indicator of how that team will build a year from now, and the eval scoreboard is a leading indicator of whether the agents are actually making the work better.</p>
     </div>
     <div class="card">
+      <h3>ADR-0004 — Idempotent on the primary key, aggregated on read</h3>
+      <p>A delivery report gets retried whenever a network hiccups, so the caller chooses the <code>event_id</code> and the primary key does the deduplication — a check-then-insert races, an insert that collides cannot. Delivery numbers are then a single <code>GROUP BY</code> over the event table rather than a rollup that can drift out of sync with it. The trigger that flips this: Day 5's simulator, when sustained load pushes <code>/delivery</code> past ~200&nbsp;ms.</p>
+    </div>
+    <div class="card">
       <h3>ADR-0003 — Redis holds the decision state, Postgres holds the truth</h3>
-      <p>Frequency counters and daily pacing spend are written on every served impression, scoped per member, and worthless after midnight — a counter with a TTL, not a row. They live in Redis under day-scoped keys that expire themselves; campaign-service stays the system of record, read over its HTTP API rather than its tables. The trigger that flips this: Day 4's event-service, when impressions become durable and spend becomes billable.</p>
+      <p>Frequency counters and daily pacing spend are written on every served impression, scoped per member, and worthless after midnight — a counter with a TTL, not a row. They live in Redis under day-scoped keys that expire themselves; campaign-service stays the system of record, read over its HTTP API rather than its tables. <b>Day 4 update — the trigger fired.</b> event-service made impressions durable, and the decision narrowed rather than reversed: Postgres now holds the auditable record of what was served, Redis keeps only the hot counters the serving path reads. The gap between the two is not a bug — it is reporting loss, and it is a panel on the dashboard.</p>
     </div>
     <div class="card">
       <h3>ADR-0002 — <code>create_all</code> over Alembic, for now</h3>
@@ -473,7 +501,7 @@ flowchart LR
 
 <footer>
   <div class="wrap">
-    <p><b>DAY 03 / 30</b> · BUILT IN PUBLIC</p>
+    <p><b>DAY 04 / 30</b> · BUILT IN PUBLIC</p>
     <p>BELLWETHER is an independent open-source project, not affiliated with or endorsed by Netflix.</p>
   </div>
 </footer>

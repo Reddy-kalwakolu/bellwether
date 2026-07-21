@@ -26,3 +26,16 @@ The store sits behind a `DecisionStore` protocol with two implementations: `Redi
 - Every rule that reads state does so through the protocol, so the hermetic test suite exercises the same code path production does.
 
 **The trigger that flips this decision:** Day 4's event-service, which makes impressions durable. Once impressions are persisted and spend becomes billable, Postgres becomes the source of truth for spend and Redis keeps only the hot counters that back the serving-path decision.
+
+## Update (Day 4) — the trigger fired, and the decision narrowed
+
+Day 4 shipped event-service, so the trigger named above has now been pulled. What happened is worth recording, because it is not what "trigger fired" usually implies.
+
+The decision did not reverse. It **narrowed**, exactly along the line it was drawn on:
+
+- **Postgres now holds the record of what was served.** `ad_events` carries one durable, auditable row per impression and click, keyed on the caller's event id (ADR-0004). That is the artifact you reconcile against, reprocess, and hand to an RCA agent.
+- **Redis keeps only the hot serving-path counters.** `freq:` and `spend:` are still read on every ad request and still expire themselves at the end of the day. They were never the record; they were the working set, and now there is a record behind them to be the working set *of*.
+
+The two now disagree by design, and the disagreement is meaningful: Redis spend is what the pacer believed at decision time, `ad_events` spend is what was actually delivered. A gap between them is not a bug — it is reporting loss, and it is a panel on the ads-delivery dashboard.
+
+Neither store changed. Naming the trigger in advance is what made it obvious, on the day, that the answer was "keep both, and be precise about which question each one answers."
