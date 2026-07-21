@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BELLWETHER Level 0 — The Substrate, in full</title>
+<meta name="description" content="A full deep dive into BELLWETHER Level 0 — the substrate: backstory, architecture, every design decision and its reversal trigger, tool selection reasoning, and an honest fidelity comparison to real CTV ad tech.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "base", themeVariables: {
+      darkMode: true,
+      background: "#131318",
+      primaryColor: "#1c1c24",
+      primaryTextColor: "#eaeaef",
+      primaryBorderColor: "#3a3a46",
+      secondaryColor: "#1c1c24",
+      tertiaryColor: "#16161d",
+      lineColor: "#6b6b78",
+      textColor: "#c9c9d2",
+      fontFamily: "JetBrains Mono, monospace",
+      fontSize: "13px"
+    } });
+</script>
+<style>
+  :root {
+    --ink: #0a0a0d;
+    --panel: #131318;
+    --panel2: #16161d;
+    --line: #26262e;
+    --line2: #33333d;
+    --text: #eaeaef;
+    --dim: #9a9aa6;
+    --dimmer: #6b6b78;
+    --signal: #e50914;
+    --good: #46d369;
+    --warn: #e8a33d;
+    --cool: #5b8def;
+    --font-d: "Segoe UI Variable Display", "SF Pro Display", ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", sans-serif;
+    --font-b: "Segoe UI Variable Text", "SF Pro Text", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-m: ui-monospace, "Cascadia Mono", "SF Mono", "JetBrains Mono", Consolas, monospace;
+    --r: 9px;
+  }
+
+  /* This page commits to one visual world on purpose: a control-room monitor.
+     It is the companion to a dark build log, not a document that flips theme. */
+  html { scroll-behavior: smooth; color-scheme: dark; }
+  body {
+    background: var(--ink); color: var(--text);
+    font-family: var(--font-b); line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  * { box-sizing: border-box; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; border-radius: 2px; }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 1.5rem; }
+  .prose { max-width: 68ch; }
+  .prose p { color: var(--dim); margin: 0 0 1rem; }
+  .prose p strong, .prose li strong { color: var(--text); font-weight: 600; }
+  .prose ul, .prose ol { color: var(--dim); margin: 0 0 1rem; padding-left: 1.15rem; }
+  .prose li { margin-bottom: .45rem; }
+  code {
+    font-family: var(--font-m); font-size: .86em;
+    background: var(--panel2); border: 1px solid var(--line);
+    padding: .08em .38em; border-radius: 4px; color: #d7d7e2;
+  }
+
+  /* ---------- top bar with scroll progress ---------- */
+  .bar {
+    position: sticky; top: 0; z-index: 20;
+    background: color-mix(in srgb, var(--ink) 90%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar-in {
+    max-width: 1120px; margin: 0 auto; padding: .6rem 1.5rem;
+    display: flex; align-items: center; gap: .9rem; flex-wrap: wrap;
+    font-family: var(--font-m); font-size: .7rem; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--dim);
+  }
+  .bar-lv { color: var(--signal); font-weight: 700; }
+  .bar-t { color: var(--text); }
+  .bar-r { margin-left: auto; color: var(--dimmer); }
+  .prog { height: 2px; background: var(--signal); width: 0; transform-origin: 0 50%; }
+  @supports (animation-timeline: scroll()) {
+    .prog { width: 100%; transform: scaleX(0); animation: grow linear both; animation-timeline: scroll(root block); }
+  }
+  @keyframes grow { to { transform: scaleX(1); } }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 4.5rem 0 3rem; border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    font-family: var(--font-m); font-size: .7rem; letter-spacing: .24em;
+    text-transform: uppercase; color: var(--dim); margin: 0 0 1.1rem;
+  }
+  .eyebrow b { color: var(--signal); font-weight: 700; }
+  h1 {
+    font-family: var(--font-d); font-weight: 800; margin: 0;
+    font-size: clamp(2.5rem, 7.5vw, 5.2rem); line-height: .94; letter-spacing: -.035em;
+    text-wrap: balance;
+  }
+  h1 em { font-style: normal; color: var(--signal); }
+  .lede { max-width: 56ch; margin: 1.5rem 0 0; font-size: 1.14rem; color: var(--dim); }
+  .lede b { color: var(--text); font-weight: 600; }
+
+  .facts {
+    margin-top: 2.4rem; display: grid; gap: 1px; background: var(--line);
+    border: 1px solid var(--line); border-radius: var(--r); overflow: hidden;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+  .fact { background: var(--panel); padding: 1rem 1.1rem; }
+  .fact .n {
+    font-family: var(--font-m); font-size: 1.5rem; font-weight: 700; color: var(--text);
+    font-variant-numeric: tabular-nums; line-height: 1.2;
+  }
+  .fact .n.sig { color: var(--signal); }
+  .fact .n.ok { color: var(--good); }
+  .fact .k {
+    font-family: var(--font-m); font-size: .64rem; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--dimmer); margin-top: .3rem;
+  }
+
+  /* ---------- sections ---------- */
+  section { padding: 3.8rem 0; border-bottom: 1px solid var(--line); }
+  .sec-eyebrow {
+    font-family: var(--font-m); font-size: .68rem; letter-spacing: .24em;
+    text-transform: uppercase; color: var(--signal); margin: 0 0 .7rem;
+  }
+  h2 {
+    font-family: var(--font-d); font-weight: 700; margin: 0 0 1.2rem;
+    font-size: clamp(1.55rem, 3.4vw, 2.25rem); letter-spacing: -.022em; text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--font-d); font-weight: 600; font-size: 1.16rem;
+    margin: 2.4rem 0 .7rem; letter-spacing: -.01em; color: var(--text);
+  }
+  h4 {
+    font-family: var(--font-m); font-size: .72rem; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--dim); margin: 1.8rem 0 .6rem; font-weight: 500;
+  }
+
+  /* ---------- table of contents ---------- */
+  .toc { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .5rem; margin-top: 1.5rem; }
+  .toc a {
+    display: flex; gap: .7rem; align-items: baseline;
+    border: 1px solid var(--line); border-radius: 6px; background: var(--panel);
+    padding: .6rem .8rem; text-decoration: none; color: var(--dim);
+    font-size: .9rem; transition: border-color .15s ease, color .15s ease, transform .15s ease;
+  }
+  .toc a:hover { border-color: var(--signal); color: var(--text); transform: translateX(2px); }
+  .toc a i {
+    font-style: normal; font-family: var(--font-m); font-size: .68rem;
+    color: var(--signal); letter-spacing: .08em;
+  }
+
+  /* ---------- generic table ---------- */
+  .scroll { overflow-x: auto; margin: 1.4rem 0; border: 1px solid var(--line); border-radius: var(--r); }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; min-width: 560px; }
+  th {
+    font-family: var(--font-m); font-size: .64rem; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--dim); font-weight: 500; text-align: left; padding: .7rem .85rem;
+    background: var(--panel2); border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  td { padding: .7rem .85rem; border-bottom: 1px solid var(--panel2); vertical-align: top; color: var(--dim); }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover td { background: var(--panel); }
+  td strong { color: var(--text); font-weight: 600; }
+  td.m, th.m { font-family: var(--font-m); font-size: .78rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* ---------- the decision ladder (signature) ---------- */
+  .ladder { margin: 1.8rem 0; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--panel); }
+  .ladder-head, .rung {
+    display: grid; grid-template-columns: 46px 1fr 190px 76px; align-items: center; gap: .9rem;
+    padding: .8rem 1rem;
+  }
+  .ladder-head {
+    background: var(--panel2); border-bottom: 1px solid var(--line);
+    font-family: var(--font-m); font-size: .62rem; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--dimmer);
+  }
+  .rung { border-bottom: 1px solid var(--panel2); position: relative; }
+  .rung:last-child { border-bottom: 0; }
+  .rung:hover { background: var(--panel2); }
+  .rung .step {
+    font-family: var(--font-m); font-size: .8rem; font-weight: 700; color: var(--signal);
+    font-variant-numeric: tabular-nums;
+  }
+  .rung .what { font-size: .93rem; color: var(--text); }
+  .rung .what small { display: block; color: var(--dimmer); font-size: .8rem; line-height: 1.5; margin-top: .15rem; }
+  .reason {
+    font-family: var(--font-m); font-size: .72rem; color: var(--signal);
+    background: color-mix(in srgb, var(--signal) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--signal) 35%, transparent);
+    padding: .2rem .5rem; border-radius: 4px; display: inline-block; white-space: nowrap;
+  }
+  .reason.win { color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); border-color: color-mix(in srgb, var(--good) 35%, transparent); }
+  .surv { font-family: var(--font-m); font-size: .78rem; color: var(--dim); text-align: right; font-variant-numeric: tabular-nums; }
+  .surv b { color: var(--text); }
+  @media (max-width: 720px) {
+    .ladder-head { display: none; }
+    .rung { grid-template-columns: 34px 1fr; row-gap: .5rem; }
+    .rung .reason-cell, .rung .surv { grid-column: 2; text-align: left; }
+  }
+
+  /* ---------- cards ---------- */
+  .cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); margin-top: 1.5rem; }
+  .card {
+    border: 1px solid var(--line); border-radius: var(--r); background: var(--panel);
+    padding: 1.15rem 1.25rem; border-top: 2px solid var(--signal);
+  }
+  .card h3 { margin: 0 0 .5rem; font-size: 1.02rem; }
+  .card p { color: var(--dim); font-size: .9rem; margin: 0 0 .6rem; }
+  .card p:last-child { margin-bottom: 0; }
+  .card .port {
+    font-family: var(--font-m); font-size: .66rem; letter-spacing: .1em; color: var(--dimmer);
+    text-transform: uppercase; display: block; margin-bottom: .4rem;
+  }
+
+  /* ---------- ADR blocks ---------- */
+  .adr {
+    border: 1px solid var(--line); border-left: 3px solid var(--signal);
+    border-radius: var(--r); background: var(--panel); padding: 1.3rem 1.5rem; margin: 1.4rem 0;
+  }
+  .adr h3 { margin: 0 0 .3rem; font-size: 1.08rem; }
+  .adr .tag {
+    font-family: var(--font-m); font-size: .64rem; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--signal); display: block; margin-bottom: .45rem;
+  }
+  .adr dl { margin: .8rem 0 0; display: grid; grid-template-columns: 120px 1fr; gap: .5rem .9rem; }
+  .adr dt {
+    font-family: var(--font-m); font-size: .64rem; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--dimmer); padding-top: .25rem;
+  }
+  .adr dd { margin: 0; color: var(--dim); font-size: .92rem; }
+  .adr .trigger {
+    margin-top: 1rem; padding: .7rem .9rem; border-radius: 6px;
+    background: color-mix(in srgb, var(--signal) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--signal) 25%, transparent);
+    font-size: .89rem; color: var(--dim);
+  }
+  .adr .trigger b { color: var(--signal); font-family: var(--font-m); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; display: block; margin-bottom: .2rem; }
+  @media (max-width: 620px) { .adr dl { grid-template-columns: 1fr; gap: .15rem; } .adr dt { padding-top: .5rem; } }
+
+  /* ---------- fidelity meter ---------- */
+  .fid { display: flex; align-items: center; gap: .6rem; min-width: 150px; }
+  .fid-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--panel2); border: 1px solid var(--line); overflow: hidden; min-width: 60px; }
+  .fid-bar span { display: block; height: 100%; }
+  .fid-l { font-family: var(--font-m); font-size: .64rem; letter-spacing: .1em; text-transform: uppercase; color: var(--dimmer); white-space: nowrap; }
+  .f-hi span { background: var(--good); }
+  .f-md span { background: var(--warn); }
+  .f-lo span { background: var(--cool); }
+  .f-no span { background: var(--dimmer); }
+
+  /* ---------- callout ---------- */
+  .note {
+    border: 1px solid var(--line2); border-radius: var(--r); background: var(--panel2);
+    padding: 1.1rem 1.3rem; margin: 1.5rem 0; font-size: .92rem; color: var(--dim);
+  }
+  .note b.h {
+    display: block; font-family: var(--font-m); font-size: .66rem; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--warn); margin-bottom: .45rem;
+  }
+  .note.sourcing b.h { color: var(--cool); }
+  .note p { margin: 0 0 .6rem; }
+  .note p:last-child { margin-bottom: 0; }
+
+  /* ---------- code / trace readout ---------- */
+  .readout {
+    border: 1px solid var(--line); border-radius: var(--r); background: #0d0d12;
+    margin: 1.5rem 0; overflow: hidden;
+  }
+  .readout-head {
+    display: flex; align-items: center; gap: .6rem; padding: .55rem .9rem;
+    background: var(--panel2); border-bottom: 1px solid var(--line);
+    font-family: var(--font-m); font-size: .66rem; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--dimmer);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--signal); flex: none; }
+  .dot.ok { background: var(--good); }
+  .readout pre {
+    margin: 0; padding: 1rem 1.1rem; overflow-x: auto;
+    font-family: var(--font-m); font-size: .78rem; line-height: 1.65; color: #c7c7d4;
+  }
+  .readout pre b { color: var(--text); font-weight: 500; }
+  .readout pre i { font-style: normal; color: var(--signal); }
+  .readout pre u { text-decoration: none; color: var(--good); }
+  .readout pre s { text-decoration: none; color: var(--dimmer); }
+
+  /* ---------- principle list ---------- */
+  .prin { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; margin-top: 1.5rem; }
+  .prin > div { background: var(--panel); padding: 1.05rem 1.2rem; }
+  .prin h3 { margin: 0 0 .35rem; font-size: 1rem; }
+  .prin p { margin: 0; color: var(--dim); font-size: .91rem; }
+
+  /* ---------- mermaid ---------- */
+  pre.mermaid {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
+    padding: 1.2rem; overflow-x: auto; margin: 1.5rem 0; text-align: center;
+  }
+
+  footer { padding: 3rem 0 4.5rem; }
+  footer .wrap { font-family: var(--font-m); font-size: .72rem; color: var(--dimmer); letter-spacing: .06em; }
+  footer b { color: var(--text); }
+  footer p { margin: 0 0 .5rem; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hero > .wrap > * { animation: rise .65s cubic-bezier(.2,.7,.2,1) both; }
+    .hero .lede { animation-delay: .08s; }
+    .hero .facts { animation-delay: .16s; }
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(16px); } }
+
+  /* Pages build: swap the system stacks for the project's real faces. */
+  :root {
+    --font-d: "Bricolage Grotesque", "Segoe UI Variable Display", sans-serif;
+    --font-b: "Instrument Sans", "Segoe UI Variable Text", sans-serif;
+    --font-m: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  }
+  .backlink {
+    display: inline-flex; align-items: center; gap: .5rem; text-decoration: none;
+    font-family: var(--font-m); font-size: .7rem; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--dim); border: 1px solid var(--line); border-radius: 6px;
+    padding: .45rem .75rem; margin-bottom: 1.6rem; transition: border-color .15s ease, color .15s ease;
+  }
+  .backlink:hover { border-color: var(--signal); color: var(--text); }
+</style>
+</head>
+<body>
+
+
+<div class="bar">
+  <div class="bar-in">
+    <span class="bar-lv">Level 00</span>
+    <span class="bar-t">The Substrate</span>
+    <span class="bar-r">Days 1–5 · complete · gate 11/11</span>
+  </div>
+  <div class="prog"></div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <a class="backlink" href="index.html">&#8592; Build log</a>
+    <p class="eyebrow"><b>BELLWETHER</b> · Deep dive · Independent project, not affiliated with Netflix</p>
+    <h1>Something real to <em>operate on</em></h1>
+    <p class="lede">Level 0 is a small, production-shaped ads platform: four services that take an ad request, decide what to serve, record what was delivered, and can be <b>broken on purpose</b>. It exists so that everything built on top of it — the context layer, the dev agents, the ops agents — has real traffic, real metrics and real incidents instead of mock data.</p>
+
+    <div class="facts">
+      <div class="fact"><div class="n">4</div><div class="k">Services</div></div>
+      <div class="fact"><div class="n">6</div><div class="k">Decision rules</div></div>
+      <div class="fact"><div class="n sig">5</div><div class="k">Failure modes</div></div>
+      <div class="fact"><div class="n">141</div><div class="k">Hermetic tests</div></div>
+      <div class="fact"><div class="n ok">11/11</div><div class="k">Level 0 gate</div></div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <p class="sec-eyebrow">Contents</p>
+    <h2>What this document covers</h2>
+    <div class="prose"><p>Read top to bottom for the full picture, or jump. Sections 3 through 6 are the system itself; 7 through 9 are the reasoning; 10 is the honest comparison to the real thing.</p></div>
+    <nav class="toc">
+      <a href="#why"><i>01</i> Why a substrate exists</a>
+      <a href="#primer"><i>02</i> Ad serving, from zero</a>
+      <a href="#arch"><i>03</i> The architecture</a>
+      <a href="#services"><i>04</i> The four services</a>
+      <a href="#decision"><i>05</i> The decision path</a>
+      <a href="#failure"><i>06</i> Breaking it on purpose</a>
+      <a href="#adrs"><i>07</i> Every decision, and why</a>
+      <a href="#tools"><i>08</i> Tool selection reasoning</a>
+      <a href="#principles"><i>09</i> The design thinking</a>
+      <a href="#netflix"><i>10</i> How close is this to Netflix?</a>
+      <a href="#omitted"><i>11</i> What it deliberately omits</a>
+      <a href="#numbers"><i>12</i> The numbers, and the defects</a>
+      <a href="#glossary"><i>13</i> Glossary</a>
+      <a href="#next"><i>14</i> What Level 0 feeds</a>
+    </nav>
+  </div>
+</section>
+
+<section id="why">
+  <div class="wrap">
+    <p class="sec-eyebrow">01 · Backstory</p>
+    <h2>Why build an ads platform to demonstrate AI engineering?</h2>
+    <div class="prose">
+      <p>BELLWETHER targets one job: Netflix's Staff AI Engineer role on the Ads Platform team, requisition AJRT30201. That posting asks for five things — a centralized context layer, dev lifecycle agents, ops agents, multi-agent orchestration, and evaluation frameworks — and its underlying tension is stated plainly: ship faster with AI <b>without accumulating slop, regressions, and accountability gaps</b>.</p>
+
+      <p>The obvious way to build a portfolio for that role is to demo agents. The problem is that almost every agent demo has the same hole in it: <b>the agent operates on nothing.</b> An "incident triage agent" reads a hand-written log file. An "RCA agent" is handed a fixture describing the answer it is supposed to find. Those demos prove the prompt works. They prove nothing about whether the agent could function against a real system.</p>
+
+      <p>So Level 0 inverts the usual order. Before any AI is written, build the thing the AI will operate on:</p>
+      <ul>
+        <li>Ops agents need <b>real logs and metrics</b> that were emitted by services actually handling requests, and <b>real incidents</b> with real causes.</li>
+        <li>Dev agents need a <b>real codebase</b> with real conventions, real tests, and real architectural decisions to be consistent with.</li>
+        <li>The context layer needs a <b>real corpus</b>: code, decision records, runbooks, API specs — documents that exist because the project needs them, not because the retriever needs something to retrieve.</li>
+        <li>Every eval needs a <b>ground truth</b> that was not authored alongside the answer.</li>
+      </ul>
+
+      <p>Ads was chosen as the domain because it is the domain of the job. Using the posting's own vocabulary — ad insertion, brand safety, frequency capping, pacing — in the code, the metrics and the logs means a reviewer reads the repo in their own language. It also happens to be a genuinely good domain for this exercise: ad decisioning is latency-sensitive, rule-dense, config-driven and money-adjacent, which produces exactly the kind of failure modes that make ops agents interesting.</p>
+
+      <h3>Where Level 0 sits in the 30 days</h3>
+      <p>Level 0 is Days 1–5 of a six-level, 30-day build. It is the only level that contains no AI at all. Everything after it consumes it.</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th class="m">Day</th><th>Deliverable</th><th>The thing that made it non-trivial</th></tr></thead>
+        <tbody>
+          <tr><td class="m">1</td><td><strong>Repo, architecture docs, running doc, ADR-0001</strong></td><td>Deciding to write decisions down from hour one, with the condition that would reverse each one.</td></tr>
+          <tr><td class="m">2</td><td><strong>campaign-service</strong> — CRUD, Postgres, OpenAPI</td><td>Tests passed locally and failed CI: they were secretly reaching a real database.</td></tr>
+          <tr><td class="m">3</td><td><strong>ad-decision-service</strong> — the serving path</td><td>Two services in one test process collided on a Prometheus metric name.</td></tr>
+          <tr><td class="m">4</td><td><strong>event-service</strong> + Grafana dashboards</td><td>Making ingestion idempotent without a check that races.</td></tr>
+          <tr><td class="m">5</td><td><strong>traffic-simulator</strong> + failure injection + quality gate</td><td>Injecting failures that are real enough to be diagnosable — and finding three genuine defects in the process.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="primer">
+  <div class="wrap">
+    <p class="sec-eyebrow">02 · Domain primer</p>
+    <h2>Ad serving, from zero</h2>
+    <div class="prose">
+      <p>None of the design decisions parse without the vocabulary. This is the whole domain model in one page.</p>
+
+      <p>A viewer is watching something. The player reaches a point where an ad can run — an <b>ad break</b>. The system is given a fraction of a second to answer one question: <b>which ad, if any, should play here?</b> That question is an <b>ad request</b>, and it carries two things:</p>
+      <ul>
+        <li><b>Member context</b> — who is watching. In BELLWETHER: a member id, a country, a device type. In production this is much richer, and much more privacy-governed.</li>
+        <li><b>The slot</b> — the opportunity itself. How many seconds are available, what the content's maturity rating is, and what the surrounding content is about (its categories).</li>
+      </ul>
+
+      <p>On the other side sit <b>campaigns</b>. A campaign is an advertiser's booking: a budget, a flight window (start and end dates), targeting rules, brand-safety exclusions, a frequency cap, and one or more <b>creatives</b> — the actual video assets, each with a duration.</p>
+
+      <p>The job of the decision path is to narrow the campaign set to the ones that are <em>allowed</em> to serve into this specific slot, then pick one. Four constraints do most of that narrowing, and all four appear verbatim in the job posting:</p>
+
+      <ul>
+        <li><b>Targeting</b> — does this campaign want this viewer? Country, device, content rating. An empty targeting list means "unrestricted", not "matches nothing".</li>
+        <li><b>Brand safety</b> — does the advertiser refuse to appear next to this kind of content? A family snack brand excluding <code>true-crime</code> is the canonical case. This is the advertiser protecting itself, and getting it wrong is a real-world incident.</li>
+        <li><b>Frequency capping</b> — has this viewer already seen this campaign too many times today? This is the constraint viewers actually feel. Capping is a quality-of-experience feature as much as a contractual one.</li>
+        <li><b>Budget pacing</b> — is this campaign allowed to spend right now? A campaign with a daily budget should spread it across the day rather than exhausting it by 9am and going dark through prime time.</li>
+      </ul>
+
+      <p>If a campaign survives all of that and has a creative that fits the slot's duration, it is <b>eligible</b>. If one is chosen, that is a <b>fill</b>; the resulting play is an <b>impression</b>. If nothing survives, it is a <b>no-fill</b>, and the share of requests that fill is the <b>fill rate</b> — the single most-watched number on the serving path.</p>
+
+      <h4>Two conventions worth explaining</h4>
+      <p><b>Money is stored in micros</b> — millionths of a currency unit — as integers. Money is never a floating-point number in an ad system, because floats accumulate rounding error and ad systems perform billions of tiny arithmetic operations against budgets. <code>2_000</code> micros is $0.002, a plausible price for one impression.</p>
+      <p><b>Every rejection has a name.</b> In BELLWETHER a filter never returns a bare <code>false</code>. It returns a reason: <code>targeting_mismatch</code>, <code>brand_safety_excluded</code>, <code>frequency_capped</code>, <code>pacing_throttled</code>. That single decision shapes the whole rest of the project, and section 9 explains why.</p>
+    </div>
+  </div>
+</section>
+
+<section id="arch">
+  <div class="wrap">
+    <p class="sec-eyebrow">03 · Architecture</p>
+    <h2>Four services, one request path</h2>
+    <div class="prose">
+      <p>The decomposition follows the natural seams of an ads platform rather than technical layers. Each service owns one question, and each owns its own state.</p>
+    </div>
+
+    <pre class="mermaid">
+%%{init: {"theme":"base","themeVariables":{"darkMode":true,"background":"#131318","primaryColor":"#1c1c24","primaryTextColor":"#eaeaef","primaryBorderColor":"#3a3a46","secondaryColor":"#1c1c24","tertiaryColor":"#16161d","lineColor":"#6b6b78","textColor":"#c9c9d2","fontFamily":"ui-monospace, monospace","fontSize":"13px"}}}%%
+flowchart TB
+    SIM["traffic-simulator :8004<br/>load + failure injection"]
+    ADS["ad-decision-service :8002<br/>the serving path"]
+    CS["campaign-service :8001<br/>system of record"]
+    EV["event-service :8003<br/>durable delivery record"]
+    PG[("Postgres :5433")]
+    RD[("Redis :6380")]
+    PROM["Prometheus :9090"]
+    GRAF["Grafana :3000"]
+
+    SIM -->|"POST /ad-request"| ADS
+    SIM -->|"POST /events"| EV
+    SIM -->|"PATCH /campaigns (inject failure)"| CS
+    ADS -->|"GET /campaigns?status=active"| CS
+    ADS <-->|"freq + spend counters"| RD
+    CS --> PG
+    EV --> PG
+    CS & ADS & EV & SIM -->|"/metrics"| PROM
+    PROM --> GRAF
+    </pre>
+
+    <div class="prose">
+      <h3>The request path, in order</h3>
+      <p>One trip through the system, from opportunity to recorded fact.</p>
+    </div>
+
+    <pre class="mermaid">
+%%{init: {"theme":"base","themeVariables":{"darkMode":true,"background":"#131318","primaryColor":"#1c1c24","primaryTextColor":"#eaeaef","primaryBorderColor":"#3a3a46","secondaryColor":"#1c1c24","tertiaryColor":"#16161d","lineColor":"#6b6b78","textColor":"#c9c9d2","fontFamily":"ui-monospace, monospace","fontSize":"13px"}}}%%
+sequenceDiagram
+    participant SIM as traffic-simulator
+    participant ADS as ad-decision-service
+    participant CS as campaign-service
+    participant R as Redis
+    participant EV as event-service
+    SIM->>ADS: POST /ad-request {member, slot}
+    ADS->>CS: GET /campaigns?status=active
+    CS-->>ADS: active campaigns + creatives
+    ADS->>R: impression counts + today's spend
+    ADS->>ADS: six-rule filter chain
+    ADS->>R: record impression (freq + spend)
+    ADS-->>SIM: AdDecision + full candidate trace
+    SIM->>EV: POST /events (impression)
+    SIM->>EV: POST /events (click, sometimes)
+    EV->>EV: dedupe on event_id, aggregate on read
+    </pre>
+
+    <div class="prose">
+      <h3>The two state stores, and why there are two</h3>
+      <p>Postgres holds <b>configuration and history</b>: campaigns, budgets, creatives, and every delivered impression. Low write rate, long lived, relational, auditable.</p>
+      <p>Redis holds <b>the serving path's working set</b>: how many times this member saw this campaign today, and how much this campaign has spent today. Written on every single impression, scoped to one member, and worthless once the day rolls over. That is a counter with an expiry, not a row with a history — so the keys are day-scoped and expire themselves after 48 hours.</p>
+      <p>These two now deliberately disagree, and the disagreement is meaningful: Redis spend is what the pacer <em>believed</em> at decision time; the Postgres event table is what was <em>actually delivered</em>. The gap between them is reporting loss, and it is a panel on the dashboard.</p>
+    </div>
+  </div>
+</section>
+
+<section id="services">
+  <div class="wrap">
+    <p class="sec-eyebrow">04 · The services</p>
+    <h2>What each one owns</h2>
+
+    <div class="cards">
+      <div class="card">
+        <span class="port">campaign-service · :8001 · Postgres</span>
+        <h3>The system of record</h3>
+        <p>CRUD over campaigns and creatives. Owns budgets, flight windows, targeting, brand-safety exclusions and frequency caps. Two tables, <code>campaigns</code> and <code>creatives</code>, with a cascade delete.</p>
+        <p><b>The interesting bit:</b> it is the <em>only</em> writer of its schema. Nothing else touches those tables — which is precisely what lets the project keep deferring database migrations.</p>
+      </div>
+      <div class="card">
+        <span class="port">ad-decision-service · :8002 · Redis</span>
+        <h3>The serving path</h3>
+        <p>One endpoint that matters: <code>POST /ad-request</code>. Runs the six-rule chain over the active campaign set and returns a fill or an explained no-fill, with a full trace of which campaign lost to which rule.</p>
+        <p><b>The interesting bit:</b> <code>decisioning.py</code> performs no I/O at all. It takes a store and a clock as arguments, so every rule is unit-testable and the whole suite runs with no Redis and no campaign-service.</p>
+      </div>
+      <div class="card">
+        <span class="port">event-service · :8003 · Postgres</span>
+        <h3>The durable record</h3>
+        <p>Ingests impressions and clicks into an append-only table, then aggregates delivery — impressions, clicks, CTR, spend — on read with a single <code>GROUP BY</code>.</p>
+        <p><b>The interesting bit:</b> the caller supplies the <code>event_id</code> and it is the primary key. A retried delivery report collides with itself instead of double-counting. Idempotency is the constraint, not a check.</p>
+      </div>
+      <div class="card">
+        <span class="port">traffic-simulator · :8004 · stateless</span>
+        <h3>The load and the incidents</h3>
+        <p>Drives seeded, reproducible traffic through the whole stack, and injects five failure modes switchable at runtime over an HTTP control plane.</p>
+        <p><b>The interesting bit:</b> it breaks things by changing <em>real configuration through public APIs</em>. No service contains a branch that knows it is being tested.</p>
+      </div>
+    </div>
+
+    <div class="prose">
+      <h3>The data model</h3>
+      <p>Three tables in total across the platform. Small on purpose — every field earns its place by being read by a rule.</p>
+    </div>
+
+    <pre class="mermaid">
+%%{init: {"theme":"base","themeVariables":{"darkMode":true,"background":"#131318","primaryColor":"#1c1c24","primaryTextColor":"#eaeaef","primaryBorderColor":"#3a3a46","secondaryColor":"#1c1c24","tertiaryColor":"#16161d","lineColor":"#6b6b78","textColor":"#c9c9d2","fontFamily":"ui-monospace, monospace","fontSize":"13px"}}}%%
+erDiagram
+    CAMPAIGN ||--o{ CREATIVE : "carries"
+    CAMPAIGN {
+        uuid id PK
+        string advertiser
+        string status "draft|active|paused|completed"
+        int budget_micros
+        int daily_budget_micros
+        int frequency_cap_per_day
+        json targeting "countries, device_types, content_ratings"
+        json brand_safety_exclusions
+        datetime starts_at
+        datetime ends_at
+    }
+    CREATIVE {
+        uuid id PK
+        uuid campaign_id FK
+        int duration_seconds
+        string asset_url
+    }
+    AD_EVENT {
+        uuid event_id PK "caller-supplied idempotency key"
+        string event_type "impression|click"
+        uuid request_id "ties back to the decision"
+        uuid campaign_id
+        uuid creative_id
+        string member_id
+        int price_micros
+        datetime occurred_at
+    }
+    </pre>
+
+    <div class="prose">
+      <p>Note what the event table stores: <code>request_id</code>. Every impression can be traced back to the exact decision that produced it, including the trace of which campaigns lost and why. That link is the reason a Level 3 root-cause agent will be able to answer "why did fill rate drop at 14:20" against evidence rather than by guessing.</p>
+    </div>
+  </div>
+</section>
+
+<section id="decision">
+  <div class="wrap">
+    <p class="sec-eyebrow">05 · The core</p>
+    <h2>The decision path, rule by rule</h2>
+    <div class="prose">
+      <p>This is the heart of Level 0. Every candidate campaign walks the same chain and is dropped at the <b>first</b> rule it fails, carrying the name of that rule out with it. The order is not arbitrary — cheap, purely local checks run before anything that requires state, so the expensive work is done on the smallest possible candidate set.</p>
+      <p>Below: three campaigns entering the chain for one slot, and where each one dies.</p>
+    </div>
+
+    <div class="ladder">
+      <div class="ladder-head">
+        <span>Step</span><span>Rule</span><span>Reason emitted on failure</span><span>Left</span>
+      </div>
+      <div class="rung">
+        <span class="step">01</span>
+        <span class="what">Is the campaign live?<small>Status must be <code>active</code>. A paused or draft flight never reaches the auction floor.</small></span>
+        <span class="reason-cell"><span class="reason">not_active</span></span>
+        <span class="surv"><b>3</b> / 3</span>
+      </div>
+      <div class="rung">
+        <span class="step">02</span>
+        <span class="what">Is it in flight?<small>Now must fall between <code>starts_at</code> and <code>ends_at</code>. Pure date arithmetic, no I/O.</small></span>
+        <span class="reason-cell"><span class="reason">outside_flight_window</span></span>
+        <span class="surv"><b>3</b> / 3</span>
+      </div>
+      <div class="rung">
+        <span class="step">03</span>
+        <span class="what">Does targeting match?<small>Country, device and content rating. An empty list means unrestricted, not unmatchable.</small></span>
+        <span class="reason-cell"><span class="reason">targeting_mismatch</span></span>
+        <span class="surv"><b>2</b> / 3</span>
+      </div>
+      <div class="rung">
+        <span class="step">04</span>
+        <span class="what">Is it brand safe here?<small>No slot content category may appear in the advertiser's exclusion list. Case-insensitive.</small></span>
+        <span class="reason-cell"><span class="reason">brand_safety_excluded</span></span>
+        <span class="surv"><b>2</b> / 3</span>
+      </div>
+      <div class="rung">
+        <span class="step">05</span>
+        <span class="what">Is the viewer under the cap?<small>First rule that reads state: today's impression count for this member and campaign, from Redis.</small></span>
+        <span class="reason-cell"><span class="reason">frequency_capped</span></span>
+        <span class="surv"><b>1</b> / 3</span>
+      </div>
+      <div class="rung">
+        <span class="step">06</span>
+        <span class="what">Is it within its pacing allowance?<small>Spend so far must fit the budget released linearly by this point in the day.</small></span>
+        <span class="reason-cell"><span class="reason">pacing_throttled</span></span>
+        <span class="surv"><b>1</b> / 3</span>
+      </div>
+      <div class="rung">
+        <span class="step">07</span>
+        <span class="what">Does a creative fit the slot?<small>At least one asset no longer than the break. The longest fitting creative wins the slot.</small></span>
+        <span class="reason-cell"><span class="reason">no_creative</span></span>
+        <span class="surv"><b>1</b> / 3</span>
+      </div>
+      <div class="rung">
+        <span class="step">→</span>
+        <span class="what">Selection among survivors<small>The slot goes to the campaign with the <b>most daily budget left to spend</b>, ties broken by id for determinism.</small></span>
+        <span class="reason-cell"><span class="reason win">eligible → fill</span></span>
+        <span class="surv"><b>1</b> winner</span>
+      </div>
+    </div>
+
+    <div class="prose">
+      <h3>Why "most budget remaining" wins, rather than "first match"</h3>
+      <p>If the winner were simply the first eligible campaign, whichever campaign happened to sort first would drain its daily budget by mid-morning and then go dark, while under-delivering campaigns stayed under-delivered. Choosing the campaign with the most daily budget left is a crude but real <b>delivery-balancing</b> heuristic: it keeps campaigns tracking toward full delivery of what the advertiser paid for.</p>
+      <p>In a production system this slot is where an <b>auction</b> lives, and the winner is chosen on expected value — bid, predicted click-through, pacing multipliers, and so on. Level 0 has no auction and no bidding at all. That is the single largest simplification in the whole substrate, and section 10 is explicit about it.</p>
+
+      <h3>Why pacing has a floor</h3>
+      <p>Pacing releases budget linearly across the day: by noon, half the daily budget is available. Taken literally, that means at 00:00:01 the allowance is effectively zero and <em>nothing can ever serve</em>, because the first impression would exceed the allowance. So the allowance is floored at the price of a single impression — enough for the day to open. It is a one-line detail that is invisible until the day rolls over and the platform mysteriously stops filling.</p>
+
+      <h3>What comes back</h3>
+      <p>The response is not a boolean and not just an ad. It is the full audit trail of the decision.</p>
+    </div>
+
+    <div class="readout">
+      <div class="readout-head"><span class="dot"></span> POST /ad-request → 200 · no-fill with trace</div>
+      <pre>{
+  "request_id": "6f1c…", "slot_id": "slot-241",
+  <b>"filled"</b>: false,
+  <b>"no_fill_reason"</b>: <i>"frequency_capped"</i>,
+  "candidates_considered": 3,
+  <b>"trace"</b>: [
+    { "campaign_name": "Wide-reach snack launch",  "reason": <i>"frequency_capped"</i> },
+    { "campaign_name": "Premium sedan, CTV only",  "reason": <i>"targeting_mismatch"</i> },
+    { "campaign_name": "Sports drink, mobile",     "reason": <i>"brand_safety_excluded"</i> }
+  ],
+  "decision_latency_ms": 1.84
+}</pre>
+    </div>
+
+    <div class="prose">
+      <p>Three campaigns, three different named reasons, one response. A human debugging a fill-rate drop does not have to reproduce anything — the answer is in the payload. And because those same names are Prometheus label values and structured log fields, the same answer is available in aggregate, over time, on a dashboard.</p>
+    </div>
+  </div>
+</section>
+
+<section id="failure">
+  <div class="wrap">
+    <p class="sec-eyebrow">06 · Failure injection</p>
+    <h2>Breaking it on purpose, for real</h2>
+    <div class="prose">
+      <p>The traffic-simulator drives about two ad requests per second through the full stack, reporting impressions and clicks back as delivery events. The population is seeded, so a run is reproducible and an incident can be replayed — which matters more than statistical realism, because ops agents will be scored against runs that must repeat.</p>
+      <p>It can also break the platform, on demand, over HTTP. The load-bearing rule: <b>failures change real configuration through public APIs.</b> Nothing is mocked, and no service contains a branch that knows it is under test.</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Scenario</th><th>What it actually does</th><th>What you see</th></tr></thead>
+        <tbody>
+          <tr><td class="m">steady</td><td>Restores seed targeting, budgets and caps — this is also the <strong>rollback</strong></td><td>Fill rate ~43%, flat latency</td></tr>
+          <tr><td class="m">error_burst</td><td>Sends genuinely malformed ad requests (30% of them)</td><td>Error-ratio panel lifts; typed 422s attributable to the caller</td></tr>
+          <tr><td class="m">traffic_surge</td><td>Raises the request rate ten-fold</td><td>Throughput and p95 latency climb <em>together</em> — load, not a fault</td></tr>
+          <tr><td class="m">bad_config_deploy</td><td><code>PATCH</code>es every campaign's targeting to a country with no traffic</td><td>Fill rate <strong>43% → 2%</strong>; <code>targeting_mismatch</code> takes over the loss breakdown</td></tr>
+          <tr><td class="m">budget_runaway</td><td>Inflates one campaign's daily budget and cap</td><td><code>pacing_throttled</code> vanishes; one campaign takes every slot it can</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="prose">
+      <p>The reason this matters is downstream. A Level 3 RCA agent evaluated against a <em>mocked</em> failure can only ever discover the mock — the evaluation would measure the fixture, not the agent. Here, when fill rate collapses, the decision path has behaved perfectly; the cause is a wrong value sitting in a real table, reachable by exactly the query a human would run.</p>
+      <p>Making the change real forces something else that turned out to be the better design: <b>recovery has to be real too.</b> Returning to <code>steady</code> is not a flag that turns the incident off — it restores the seed configuration. Reverting is a rollback, which is precisely the remediation a guided-resolution agent should be recommending.</p>
+
+      <h3>The quality gate</h3>
+      <p>Level 0's exit criterion, from the design spec, was "all services healthy under simulator load; failure injection works — 100%". That sentence became a script that exits zero or names the check that failed.</p>
+    </div>
+
+    <div class="readout">
+      <div class="readout-head"><span class="dot ok"></span> python platform/level0_gate.py</div>
+      <pre>  [<u>PASS</u>] campaign-service healthy               <s>HTTP 200</s>
+  [<u>PASS</u>] ad-decision-service healthy            <s>HTTP 200</s>
+  [<u>PASS</u>] event-service healthy                  <s>HTTP 200</s>
+  [<u>PASS</u>] traffic-simulator healthy              <s>HTTP 200</s>
+  [<u>PASS</u>] prometheus healthy                     <s>HTTP 200</s>
+  [<u>PASS</u>] prometheus scrapes every service       <s>4 targets up</s>
+  [<u>PASS</u>] steady serves ads                      <s>15 fills across 56 requests</s>
+  [<u>PASS</u>] error_burst produces rejections        <s>16 requests rejected</s>
+  [<u>PASS</u>] traffic_surge raises the rate          <s>2 -> 20 requests/sec</s>
+  [<u>PASS</u>] bad_config_deploy collapses fill rate  <s>fill rate 2% across 58 requests</s>
+  [<u>PASS</u>] budget_runaway changes configuration   <s>1 campaign(s) mutated</s>
+
+  <b>LEVEL 0 GATE: 11/11 (100%)</b></pre>
+    </div>
+
+    <div class="prose">
+      <p>The gate's <em>decision logic</em> is pure and unit-tested; the live run only supplies numbers. That split is what makes it trustworthy in both directions — it cannot pass by accident with the substrate switched off, and it cannot fail because a test double drifted away from reality. Two deliberate details: "not enough traffic" is never a pass (a fill-rate collapse needs at least ten requests of evidence), and the gate leaves the platform healthy when it exits.</p>
+      <p>On its first run the gate <b>failed itself</b>: the traffic-surge check read its baseline from the response of the call that switched the scenario, which already reflected the new rate — so it compared 20 requests/sec against 20 requests/sec and never moved. Exactly what a gate is for.</p>
+    </div>
+  </div>
+</section>
+
+<section id="adrs">
+  <div class="wrap">
+    <p class="sec-eyebrow">07 · Decisions</p>
+    <h2>Every architectural decision, and the condition that reverses it</h2>
+    <div class="prose">
+      <p>Five decision records cover Level 0. Each follows the same shape — context, decision, alternatives, consequences — plus one field that is unusual and is arguably the most valuable practice in the project: <b>the trigger</b>. Every decision names, in advance, the specific observable condition that would make it wrong.</p>
+      <p>That converts "we'll revisit this later" into a falsifiable statement. Two of the five triggers have now fired on schedule.</p>
+    </div>
+
+    <div class="adr">
+      <span class="tag">ADR-0001 · Accepted</span>
+      <h3>Docker Compose over Kubernetes</h3>
+      <dl>
+        <dt>Context</dt><dd>Four services, one developer, one laptop, and a recorded demo that has to work every time.</dd>
+        <dt>Decision</dt><dd>Docker Compose. One command to a running stack, with published host ports and health checks.</dd>
+        <dt>Rejected</dt><dd>Kubernetes (kind/k3s). It would add real operational overhead — manifests, ingress, local registry — while proving nothing about AI foundation engineering, which is the thing being demonstrated.</dd>
+        <dt>Consequence</dt><dd>No horizontal scaling, no rolling deploys, no service mesh. All acceptable at this scale. Choosing infrastructure proportionate to the problem is itself the signal.</dd>
+      </dl>
+      <div class="trigger"><b>Trigger</b>Needing multi-replica behaviour or a deploy strategy that Compose cannot express.</div>
+    </div>
+
+    <div class="adr">
+      <span class="tag">ADR-0002 · Accepted</span>
+      <h3><code>create_all</code> over Alembic migrations, for now</h3>
+      <dl>
+        <dt>Context</dt><dd>The schema has one writer, no data anyone depends on, and it will churn daily through Day 5.</dd>
+        <dt>Decision</dt><dd>Let SQLAlchemy create tables at startup. No migration tool yet.</dd>
+        <dt>Rejected</dt><dd>Alembic from day one. Migrations written against a schema that changes every day are noise, not safety — and noise that has to be maintained.</dd>
+        <dt>Consequence</dt><dd>Changing a column type means recreating the table. Perfectly fine while nothing depends on the data; unacceptable the moment something does.</dd>
+      </dl>
+      <div class="trigger"><b>Trigger</b>The first second service that reads these tables. Deliberately unfired — ad-decision-service reads campaigns over HTTP precisely so this stayed true. But Day 5 found the other half of the cost: budgets live in a 32-bit column, and widening it to <code>BIGINT</code> is exactly the change that now needs migrations.</div>
+    </div>
+
+    <div class="adr">
+      <span class="tag">ADR-0003 · Accepted · trigger fired</span>
+      <h3>Redis holds the decision state, Postgres holds the truth</h3>
+      <dl>
+        <dt>Context</dt><dd>Frequency counters and daily spend are written on every served impression, scoped per member, and worthless after midnight. That access pattern is a counter with a TTL, not a row with a history.</dd>
+        <dt>Decision</dt><dd>Per-day counters live in Redis under self-expiring, day-scoped keys (<code>freq:{member}:{campaign}:{date}</code>, 48h TTL). Campaign configuration stays in Postgres, read over campaign-service's HTTP API rather than its tables.</dd>
+        <dt>Rejected</dt><dd>Postgres tables for counters (a row per impression plus an aggregate query on every ad request, and a nightly cleanup of data nobody wants). In-process counters (wrong the moment there is a second replica).</dd>
+        <dt>Consequence</dt><dd>Decision state is lost if Redis is flushed — worst case a member sees one extra ad. Acceptable for counters; not acceptable for money, so spend here is explicitly an estimate, not billing.</dd>
+      </dl>
+      <div class="trigger"><b>Trigger — fired on Day 4</b>event-service made impressions durable. The decision <em>narrowed</em> rather than reversing: Postgres now holds the auditable record of what was served, Redis keeps only the hot serving-path counters. Naming the trigger a day early is what made the answer obvious on the day.</div>
+    </div>
+
+    <div class="adr">
+      <span class="tag">ADR-0004 · Accepted</span>
+      <h3>Idempotent on the primary key, aggregated on read</h3>
+      <dl>
+        <dt>Context</dt><dd>Delivery reports get retried whenever a network hiccups. An impression counted twice is a campaign billed twice.</dd>
+        <dt>Decision</dt><dd>The caller supplies the <code>event_id</code> and it is the primary key. The insert either wins or raises a constraint violation, and the second outcome is a <code>200 duplicate</code> acknowledgement — not an error, because from the caller's point of view the event <em>is</em> recorded. Delivery numbers are then a single <code>GROUP BY</code>, with no rollup table.</dd>
+        <dt>Rejected</dt><dd><b>Check-then-insert</b>: it races — two concurrent reports both read "absent" and both insert. <b>Server-generated ids</b>: they make idempotency impossible by construction, since every retry is a new id. <b>A rollup table</b>: a second copy of the truth that drifts the first time anyone backfills.</dd>
+        <dt>Consequence</dt><dd>The events table only grows, and <code>/delivery</code> scans it — fast because the table is small, not because the query is clever. An honest constraint rather than a hidden one.</dd>
+      </dl>
+      <div class="trigger"><b>Trigger</b><code>/delivery</code> p95 crossing ~200 ms under sustained load, or the events table outgrowing a day of retention. Then a rollup table earns the copy-of-the-truth it costs.</div>
+    </div>
+
+    <div class="adr">
+      <span class="tag">ADR-0005 · Accepted</span>
+      <h3>Failures are injected by changing real configuration, not by mocking</h3>
+      <dl>
+        <dt>Context</dt><dd>Level 3's ops agents will be scored on finding the <em>right</em> root cause. If the failure is a mock, the only discoverable cause is the mock.</dd>
+        <dt>Decision</dt><dd>Every failure mode changes real state through the same public APIs any other client would use. No <code>CHAOS=true</code> flag, no debug endpoint, no synthetic metrics.</dd>
+        <dt>Rejected</dt><dd><b>A chaos env var read by each service</b>: puts test code on the serving path and makes the "root cause" a branch in our own source. <b>Writing synthetic series into Prometheus</b>: dashboards would show an incident that never happened — precisely the mock-data theatre the project exists to avoid. <b>Mutating the database directly</b>: would create states the API forbids, which no real incident could reach.</dd>
+        <dt>Consequence</dt><dd>Injecting a failure genuinely breaks the running platform, so the simulator owns recovery, and the seed campaign set becomes product rather than fixture. Injection is bounded by what the API allows — mostly a feature, since it keeps every staged incident reachable in production.</dd>
+      </dl>
+      <div class="trigger"><b>Trigger</b>The first failure class we genuinely need that has no configuration cause — a network partition, a half-dead replica. That is when a fault-injection proxy earns a place <em>alongside</em> this, not instead of it.</div>
+    </div>
+  </div>
+</section>
+
+<section id="tools">
+  <div class="wrap">
+    <p class="sec-eyebrow">08 · Tool selection</p>
+    <h2>Why each tool, and what was turned down</h2>
+    <div class="prose">
+      <p>Every choice here was made against one constraint that outranks the others: <b>the AI layer being built on top has to be able to read, reason about and modify this code.</b> That biases hard toward explicit types, machine-readable contracts and boring, well-documented tools.</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Choice</th><th>Why this one</th><th>What was turned down, and why</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Python 3.11+</strong></td>
+            <td>The language the whole AI ecosystem lives in. Levels 1–4 need LangGraph, ChromaDB, sentence-transformers and the Anthropic SDK — all Python-first. One language across substrate and AI layer means the context layer parses everything with one AST.</td>
+            <td><strong>Java/Kotlin</strong>, which is closer to Netflix's actual backend stack, would have split the repo in two and made the AST knowledge graph a two-parser problem for no demonstrative gain.</td>
+          </tr>
+          <tr>
+            <td><strong>FastAPI</strong></td>
+            <td>Generates OpenAPI from type hints for free. That spec is not decoration — it becomes ingestible context on Day 6 and the contract a code-gen agent writes against on Day 11. Dependency injection gives clean test seams.</td>
+            <td><strong>Flask</strong> (no typed contracts, no schema generation), <strong>Django</strong> (an ORM-and-admin framework for four endpoints).</td>
+          </tr>
+          <tr>
+            <td><strong>Pydantic v2</strong></td>
+            <td>Validation at the boundary, in the type system. Its models <em>are</em> the API contract, so an invalid ad request is rejected before a single rule runs. The <code>le=</code> bound on budgets is documentation, validation and OpenAPI in one line.</td>
+            <td>Hand-rolled validation, which drifts from the docs within a week.</td>
+          </tr>
+          <tr>
+            <td><strong>Postgres</strong></td>
+            <td>Relational data with real constraints. Level 0 leans on it twice for correctness: cascade deletes, and the primary-key collision that makes event ingestion idempotent without a race.</td>
+            <td><strong>SQLite</strong> — used <em>in tests</em>, deliberately, but it does not enforce integer widths, which is why the 32-bit budget ceiling could only be caught against real Postgres.</td>
+          </tr>
+          <tr>
+            <td><strong>Redis</strong></td>
+            <td>The access pattern picked it: atomic <code>INCRBY</code> plus a TTL is exactly "a counter that expires". Key expiry means no cleanup job ever has to be written.</td>
+            <td>Postgres counters (wrong shape, needs a nightly delete), in-memory counters (wrong the moment there are two replicas). Netflix's equivalent layer is EVCache, memcached-based; Redis is the closest thing with the same role.</td>
+          </tr>
+          <tr>
+            <td><strong>Prometheus + Grafana</strong></td>
+            <td>Pull-based scraping and a label model that fits the domain exactly: one counter, <code>ad_candidates_filtered_total</code>, labelled by <code>reason</code>, is a complete fill-rate diagnosis. Dashboards are checked-in JSON, provisioned from files, validated by a test.</td>
+            <td>Netflix runs <strong>Atlas</strong> internally, not Prometheus. Atlas is not meaningfully self-hostable for a project like this, and the <em>practice</em> — dimensional metrics, dashboards as code — transfers unchanged.</td>
+          </tr>
+          <tr>
+            <td><strong>Docker Compose</strong></td>
+            <td>One command from clone to running stack; the Level 5 quality gate is a ten-minute fresh-clone target.</td>
+            <td>Kubernetes — see ADR-0001.</td>
+          </tr>
+          <tr>
+            <td><strong>uv</strong></td>
+            <td>Fast, lockfile-based, and one tool for environments, dependencies and running scripts. A frozen lockfile makes Docker builds reproducible.</td>
+            <td>pip + venv (slow, no lockfile by default), Poetry (slower resolution, more ceremony).</td>
+          </tr>
+          <tr>
+            <td><strong>ruff + mypy --strict</strong></td>
+            <td>The strictest reasonable static floor, because AI-generated code is coming. <code>--strict</code> across <code>substrate</code>, <code>tests</code> and <code>platform</code> means a code-gen agent's output has an objective bar to clear before a human ever reads it. Ruff replaces flake8, isort, black and more in one fast binary.</td>
+            <td>Loose typing. Gradual typing would have made the Level 2 "does the generated code pass lint and types" metric close to meaningless.</td>
+          </tr>
+          <tr>
+            <td><strong>pytest, hermetic</strong></td>
+            <td>The entire suite passes with Docker stopped. In-memory SQLite, an in-memory decision store, protocol stubs for HTTP. 141 tests in about 5 seconds.</td>
+            <td>Integration-first testing. It is slower, flakier, and — proven on Day 2 — silently passes for the wrong reason.</td>
+          </tr>
+          <tr>
+            <td><strong>httpx</strong></td>
+            <td>One client library, sync and async, with a pluggable transport — so the campaign-service client is tested against a mock transport instead of a socket.</td>
+            <td><code>requests</code> (no async path, no transport seam).</td>
+          </tr>
+          <tr>
+            <td><strong>Mermaid for diagrams</strong></td>
+            <td>Diagrams as code: versioned, diffable, reviewable, and reusable in videos. A diagram that lives in a PNG is wrong within a week and nobody notices.</td>
+            <td>Drawn diagrams in any GUI tool.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="prose">
+      <h4>Two smaller choices with outsized effects</h4>
+      <p><b>Non-default host ports.</b> Postgres publishes on 5433 and Redis on 6380, because 5432 and 6379 are usually already taken on a working machine. Ten seconds of thought that prevents a whole class of "works on my machine" confusion — and the kind of detail a reviewer notices.</p>
+      <p><b>One shared observability module.</b> Prometheus keeps a single registry per process, so two services each defining <code>http_requests_total</code> collide the moment both are imported — which the test suite does. The metric is defined once in <code>substrate/shared/observability.py</code>, and the <code>service</code> label is what separates them. This was found by a test failure on Day 3, not by design.</p>
+    </div>
+  </div>
+</section>
+
+<section id="principles">
+  <div class="wrap">
+    <p class="sec-eyebrow">09 · Design thinking</p>
+    <h2>Nine ideas that shaped everything else</h2>
+    <div class="prose"><p>These recur across all four services. Most of them exist because of what has to be built on top.</p></div>
+
+    <div class="prin">
+      <div>
+        <h3>Named reasons, never booleans</h3>
+        <p>A filter that returns <code>false</code> tells you nothing at 2am. <code>pacing_throttled</code> is simultaneously a field in the API response, a Prometheus label, and a key in the JSON log line. One naming decision produced the response trace, the diagnostic dashboard panel, and the evidence an RCA agent will cite — three artifacts from one idea.</p>
+      </div>
+      <div>
+        <h3>Pure core, injected edges</h3>
+        <p>The decision chain takes a store and a clock as arguments and performs no I/O. Aggregation is a query builder. Failure scenarios are data, not branches. Everything that touches the network or the clock lives at the edge behind a protocol. This is what makes a hermetic test suite possible rather than aspirational.</p>
+      </div>
+      <div>
+        <h3>Tests that cannot touch infrastructure</h3>
+        <p>On Day 2 the suite passed locally and failed CI: the test client was entering a context manager that ran the app lifespan, which created tables against a real Postgres. The tests only passed because Docker happened to be running. Now every service's suite runs with the stack stopped, and that is checked before every push.</p>
+      </div>
+      <div>
+        <h3>Let the constraint enforce it</h3>
+        <p>Idempotent ingestion is not a check, it is a primary key. Two concurrent reports of the same impression cannot both survive an insert. Any rule expressible as a database constraint should be one — application-level checks race, constraints do not.</p>
+      </div>
+      <div>
+        <h3>Write down what would change your mind</h3>
+        <p>Every decision record names, in advance, the observable condition that would reverse it. This turns architectural debt from a vague feeling into a tripwire. When Day 4's trigger fired on schedule, the answer — narrow the decision rather than reverse it — was obvious in minutes because the question had been framed a day earlier.</p>
+      </div>
+      <div>
+        <h3>Typed errors, never a bare 500</h3>
+        <p>Every non-2xx response uses one envelope. An unreachable campaign-service is a <code>503</code> naming the upstream, not a stack trace. Day 5 found a genuine violation — a Postgres range error escaping as a 500 — and it was treated as a real defect, because failure modes are a design surface and machine-readable failure is the whole point when an agent is the caller.</p>
+      </div>
+      <div>
+        <h3>Real failures, or the eval measures nothing</h3>
+        <p>The simulator breaks the platform by changing real configuration. When fill rate collapses, the decision path has behaved perfectly against a wrong value in a real table. Anything less and Level 3's evaluation is scoring an agent's ability to find a fixture.</p>
+      </div>
+      <div>
+        <h3>Observability as a design surface</h3>
+        <p>Metrics and log fields were chosen at the same time as the rules, not bolted on afterwards. That is why one stacked panel — candidates lost, by rule — answers "why did fill rate drop" directly, instead of requiring three dashboards and a hunch.</p>
+      </div>
+      <div>
+        <h3>Build the evidence for the next level</h3>
+        <p>Almost every Level 0 choice was made for a consumer that does not exist yet. The decision trace exists for the RCA agent. The runbook exists for the context layer. The OpenAPI specs exist for the code-gen agent. Strict typing exists so generated code has a bar to clear. Level 0 is infrastructure for the argument, not just for the app.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="netflix">
+  <div class="wrap">
+    <p class="sec-eyebrow">10 · Fidelity</p>
+    <h2>How close is this to the real Netflix system?</h2>
+
+    <div class="note sourcing">
+      <b class="h">Sourcing note — read this before the table</b>
+      <p>I have no visibility into Netflix's internal architecture, and nothing here should be read as describing it. This comparison is against two things only: <b>publicly reported facts</b> about Netflix's ads business, and <b>standard practice in connected-TV ad tech</b>, which is well documented across the industry.</p>
+      <p>What is public and well reported: Netflix launched an ad-supported tier in November 2022; Microsoft (Xandr) was its initial ad-serving and sales partner; Netflix subsequently built and rolled out its own ad platform, branded the Netflix Ads Suite, from 2025. Netflix's general engineering stack is also publicly documented through its tech blog and open-source projects — JVM-heavy services, Cassandra, EVCache, Kafka, Flink, Titus, Spinnaker, and Atlas for telemetry.</p>
+      <p>Everything in the "production reality" column below is either one of those public facts or a statement about how CTV ad systems generally work. Where I am inferring, the row says so.</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Concern</th><th>What Level 0 does</th><th>Production reality</th><th style="min-width:170px">Fidelity</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Domain vocabulary</strong></td>
+            <td>Ad request, slot, campaign, creative, flight, targeting, brand safety, frequency cap, pacing, fill rate, no-fill, micros</td>
+            <td>The same words, used the same way. This is industry-standard terminology, not invented.</td>
+            <td><div class="fid f-hi"><div class="fid-bar"><span style="width:95%"></span></div><span class="fid-l">High</span></div></td>
+          </tr>
+          <tr>
+            <td><strong>Service decomposition</strong></td>
+            <td>Campaign management / decisioning / event collection split into separate services with separate stores</td>
+            <td>The same three responsibilities are separated in essentially every ad platform, though each is many services rather than one.</td>
+            <td><div class="fid f-hi"><div class="fid-bar"><span style="width:80%"></span></div><span class="fid-l">High shape</span></div></td>
+          </tr>
+          <tr>
+            <td><strong>Filter-then-select</strong></td>
+            <td>Eligibility filtering, then a selection step over survivors</td>
+            <td>Candidate selection → filtering → ranking is the standard shape. The <em>kind</em> of pipeline is right.</td>
+            <td><div class="fid f-hi"><div class="fid-bar"><span style="width:75%"></span></div><span class="fid-l">High shape</span></div></td>
+          </tr>
+          <tr>
+            <td><strong>Frequency capping</strong></td>
+            <td>Per member, per campaign, per day, in a low-latency KV store with TTL</td>
+            <td>Same idea and same class of store. Production adds cross-device identity, multiple cap windows (hour/day/week/campaign/advertiser), household-level capping, and distributed-consistency concerns this has none of.</td>
+            <td><div class="fid f-md"><div class="fid-bar"><span style="width:55%"></span></div><span class="fid-l">Medium</span></div></td>
+          </tr>
+          <tr>
+            <td><strong>Budget pacing</strong></td>
+            <td>Even pacing: budget released linearly across the day</td>
+            <td>Even pacing is a real, named strategy. Production runs closed-loop controllers with delivery forecasting, catch-up logic, and ASAP/front-loaded modes.</td>
+            <td><div class="fid f-md"><div class="fid-bar"><span style="width:45%"></span></div><span class="fid-l">Medium</span></div></td>
+          </tr>
+          <tr>
+            <td><strong>Brand safety</strong></td>
+            <td>Advertiser excludes content categories; case-insensitive set intersection</td>
+            <td>Right concept. Production involves classification pipelines, third-party verification vendors, per-title review, and contractual guarantees.</td>
+            <td><div class="fid f-md"><div class="fid-bar"><span style="width:40%"></span></div><span class="fid-l">Medium</span></div></td>
+          </tr>
+          <tr>
+            <td><strong>Observability</strong></td>
+            <td>Dimensional metrics, structured JSON logs, dashboards as provisioned code</td>
+            <td>The practice is standard and transfers directly. The tools differ — Netflix uses Atlas rather than Prometheus/Grafana.</td>
+            <td><div class="fid f-md"><div class="fid-bar"><span style="width:60%"></span></div><span class="fid-l">Practice matches</span></div></td>
+          </tr>
+          <tr>
+            <td><strong>Event pipeline</strong></td>
+            <td>Synchronous HTTP POST into Postgres; aggregate on read</td>
+            <td>Real platforms stream: a log/Kafka-style bus, stream processing, columnar warehouse, and separate real-time and batch paths. The <em>idempotency</em> idea is right; the transport and scale are not.</td>
+            <td><div class="fid f-lo"><div class="fid-bar"><span style="width:28%"></span></div><span class="fid-l">Low</span></div></td>
+          </tr>
+          <tr>
+            <td><strong>Ad selection economics</strong></td>
+            <td>Flat price per impression; winner is whoever has the most daily budget left</td>
+            <td>An auction. Bids, expected-value ranking, price computation, guaranteed vs biddable inventory, deal IDs. <b>This is the single largest simplification in the substrate.</b></td>
+            <td><div class="fid f-lo"><div class="fid-bar"><span style="width:12%"></span></div><span class="fid-l">Low</span></div></td>
+          </tr>
+          <tr>
+            <td><strong>Latency &amp; scale</strong></td>
+            <td>~2 requests/sec, one replica, single region, sub-millisecond rule evaluation</td>
+            <td>Enormous request volume, strict end-to-end latency budgets, multi-region, aggressive caching of the candidate set.</td>
+            <td><div class="fid f-lo"><div class="fid-bar"><span style="width:8%"></span></div><span class="fid-l">Low</span></div></td>
+          </tr>
+          <tr>
+            <td><strong>Delivery mechanics</strong></td>
+            <td>Returns an asset URL and considers the job done</td>
+            <td>Server-side ad insertion, manifest manipulation, transcoding to many renditions, CDN delivery, player beacons, VAST/VMAP.</td>
+            <td><div class="fid f-no"><div class="fid-bar"><span style="width:4%"></span></div><span class="fid-l">Absent</span></div></td>
+          </tr>
+          <tr>
+            <td><strong>Identity, consent, privacy</strong></td>
+            <td>A member id string. Nothing else.</td>
+            <td>Identity resolution, consent frameworks, regional privacy regimes, data clean rooms, audience segments and match rates.</td>
+            <td><div class="fid f-no"><div class="fid-bar"><span style="width:2%"></span></div><span class="fid-l">Absent</span></div></td>
+          </tr>
+          <tr>
+            <td><strong>Measurement &amp; billing</strong></td>
+            <td>Spend is an explicit estimate at a flat price; the docs say so repeatedly</td>
+            <td>Verified impressions, viewability, invalid-traffic detection, third-party measurement, reconciliation, actual invoicing.</td>
+            <td><div class="fid f-no"><div class="fid-bar"><span style="width:5%"></span></div><span class="fid-l">Absent</span></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="prose">
+      <h3>The honest summary</h3>
+      <p>Level 0 is <b>structurally faithful and operationally miniature</b>. The concepts, their names, their ordering and the shape of the services would all be recognisable to someone who works on CTV ad serving. The economics, the scale, the delivery mechanics and the entire privacy surface are either absent or reduced to a placeholder.</p>
+      <p>That trade is deliberate and it is the correct one <em>for this project</em>, because the substrate is not the deliverable. It exists to generate real traffic, real metrics, real logs and real incidents for an AI platform to operate on. Adding an auction would make the ads platform more impressive and the AI demonstration no better. Every hour spent on ad-tech sophistication is an hour not spent on the thing the job posting actually asks about.</p>
+      <p>The claim being made is precise: <em>this person can build a production-shaped distributed system in the ads domain, and reason clearly about what they simplified and why.</em> Not: <em>this person rebuilt Netflix's ad server.</em></p>
+    </div>
+  </div>
+</section>
+
+<section id="omitted">
+  <div class="wrap">
+    <p class="sec-eyebrow">11 · Scope</p>
+    <h2>What Level 0 deliberately does not do</h2>
+    <div class="prose">
+      <p>Naming omissions explicitly is part of the argument. An omission you can name is a scoping decision; an omission you cannot is a gap.</p>
+      <ul>
+        <li><b>No auction or bidding.</b> No bids, no second-price mechanics, no floor prices, no deal IDs, no guaranteed-versus-biddable inventory.</li>
+        <li><b>No machine-learned ranking.</b> No CTR prediction, no relevance model, no experimentation framework. The selection rule is one line and is explained as a heuristic.</li>
+        <li><b>No identity, consent or privacy layer.</b> A member id is an opaque string; there are no segments, no consent signals, no regional regimes.</li>
+        <li><b>No ad delivery.</b> No transcoding, no CDN, no server-side insertion, no manifest manipulation, no VAST, no player beacons.</li>
+        <li><b>No streaming data platform.</b> Events arrive over HTTP and land in Postgres. There is no Kafka, no stream processor, no warehouse, no batch/real-time split.</li>
+        <li><b>No forecasting or inventory management.</b> No avails prediction, no reach-and-frequency planning, no overbooking protection.</li>
+        <li><b>No multi-tenancy or authentication.</b> Every API is open on localhost. Deliberate for a demo stack; disqualifying for anything else.</li>
+        <li><b>No horizontal scale story.</b> One replica per service. Notably, the frequency counters <em>would</em> survive replication (they are in Redis), while the in-process fallback store would not — and that is documented rather than hidden.</li>
+      </ul>
+      <p>Each of these would be a reasonable thing to build. None of them would make the AI foundation on top of it any more convincing, which is the only test that mattered.</p>
+    </div>
+  </div>
+</section>
+
+<section id="numbers">
+  <div class="wrap">
+    <p class="sec-eyebrow">12 · Evidence</p>
+    <h2>The numbers, and what running it found</h2>
+    <div class="prose">
+      <p>The project's stated thesis is "AI velocity with provable quality", so Level 0 publishes its own numbers before any AI exists to be measured.</p>
+    </div>
+
+    <div class="facts" style="margin-top:1.6rem">
+      <div class="fact"><div class="n ok">11/11</div><div class="k">Level 0 gate</div></div>
+      <div class="fact"><div class="n">141</div><div class="k">Tests, Docker stopped</div></div>
+      <div class="fact"><div class="n">~5s</div><div class="k">Full suite runtime</div></div>
+      <div class="fact"><div class="n">43%</div><div class="k">Baseline fill rate</div></div>
+      <div class="fact"><div class="n sig">2%</div><div class="k">Fill rate under bad config</div></div>
+      <div class="fact"><div class="n">0</div><div class="k">mypy --strict errors</div></div>
+    </div>
+
+    <div class="prose">
+      <h3>Three real defects, found by pointing real load at it</h3>
+      <p>This is the strongest evidence that the substrate is not theatre. On its first day of running, the simulator found three genuine defects in the platform it was pointed at.</p>
+      <ol>
+        <li><b>Budgets overflow a 32-bit column.</b> Micros were stored in a SQLAlchemy <code>Integer</code>, which is a Postgres <code>INTEGER</code> — capping a daily budget at 2,147,483,647 micros, about <b>$2,147</b>. The budget-runaway scenario tried to exceed it and Postgres raised a range error. The ceiling is now stated in the API contract as a validation bound; the real fix, widening the column to <code>BIGINT</code>, is exactly the change that ADR-0002 is waiting on migrations for.</li>
+        <li><b>That overflow escaped as a bare 500</b> — a direct violation of the project's own coding standard. Now a typed 422, with a handler ensuring no column's range error can ever surface untyped again.</li>
+        <li><b>The seed guard was all-or-nothing.</b> One leftover campaign from a manual test suppressed the entire seed campaign set, and the simulator drove traffic against a single narrowly-targeted flight at a <b>2% fill rate</b>, with 828 candidates rejected for <code>targeting_mismatch</code>. Seeding is now idempotent per campaign, by name.</li>
+      </ol>
+      <p>And a fourth, in the gate itself: it failed on its first run because it read its baseline from the response of the call that changed the state it was measuring.</p>
+      <p>None of these would have been found by a test suite. All four came from running the real thing under real load and looking at the numbers — which is the entire argument for building a substrate.</p>
+    </div>
+  </div>
+</section>
+
+<section id="glossary">
+  <div class="wrap">
+    <p class="sec-eyebrow">13 · Reference</p>
+    <h2>Glossary</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th style="width:210px">Term</th><th>Meaning in this system</th></tr></thead>
+        <tbody>
+          <tr><td class="m">ad request</td><td>One opportunity to serve an ad: a member context plus a slot.</td></tr>
+          <tr><td class="m">slot</td><td>The ad break being filled — duration, content rating, content categories.</td></tr>
+          <tr><td class="m">campaign</td><td>An advertiser's booking: budget, flight window, targeting, exclusions, cap, creatives.</td></tr>
+          <tr><td class="m">creative</td><td>One ad asset belonging to a campaign, with a duration that must fit the slot.</td></tr>
+          <tr><td class="m">flight window</td><td>The period between <code>starts_at</code> and <code>ends_at</code> during which a campaign may serve.</td></tr>
+          <tr><td class="m">targeting</td><td>Country, device type and content rating the campaign will accept. Empty means unrestricted.</td></tr>
+          <tr><td class="m">brand safety</td><td>Content categories the advertiser refuses to appear beside.</td></tr>
+          <tr><td class="m">frequency cap</td><td>Maximum impressions of one campaign to one member per day.</td></tr>
+          <tr><td class="m">pacing</td><td>Spreading a daily budget evenly across the day so it is not exhausted early.</td></tr>
+          <tr><td class="m">fill / no-fill</td><td>Whether an ad request produced an ad. Fill rate is the share that did.</td></tr>
+          <tr><td class="m">impression</td><td>One ad actually played. The only event that costs the advertiser anything here.</td></tr>
+          <tr><td class="m">CTR</td><td>Click-through rate: clicks divided by impressions.</td></tr>
+          <tr><td class="m">micros</td><td>Millionths of a currency unit, stored as integers. Money is never a float.</td></tr>
+          <tr><td class="m">trace</td><td>The per-candidate audit trail on every decision: which campaign lost, to which rule.</td></tr>
+          <tr><td class="m">scenario</td><td>An injectable failure mode, applied by changing real configuration.</td></tr>
+          <tr><td class="m">trigger</td><td>The pre-declared condition that would reverse an architectural decision.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="next">
+  <div class="wrap">
+    <p class="sec-eyebrow">14 · Downstream</p>
+    <h2>What Level 0 feeds</h2>
+    <div class="prose"><p>Every artifact built in Days 1–5 becomes an input to something later. This is the payoff for choices that looked like over-engineering at the time.</p></div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th style="width:190px">Level</th><th>What it consumes from Level 0</th></tr></thead>
+        <tbody>
+          <tr><td><strong>1 · Context layer</strong><br><span class="fid-l">Days 6–10</span></td><td>The corpus itself: four services of typed Python, five decision records, five devlogs, the Level 0 runbook, four OpenAPI specs. All written because the project needed them — which is why the retrieval evaluation means something.</td></tr>
+          <tr><td><strong>2 · Dev agents</strong><br><span class="fid-l">Days 11–15</span></td><td>A real codebase with enforced conventions. Generated code must pass <code>ruff</code> and <code>mypy --strict</code>; generated tests must survive mutation testing; the PR reviewer is grounded in the ADRs and the standards doc.</td></tr>
+          <tr><td><strong>3 · Ops agents</strong><br><span class="fid-l">Days 16–20</span></td><td>The whole reason the substrate exists: structured logs with named rejection reasons, dimensional metrics, and five injectable incidents with real causes. Triage, correlation and root-cause analysis against evidence, not fixtures.</td></tr>
+          <tr><td><strong>4 · Orchestration</strong><br><span class="fid-l">Days 21–25</span></td><td>A system small enough for parallel agents to change coherently, with a test suite fast and hermetic enough to gate every one of their proposals.</td></tr>
+          <tr><td><strong>5 · Platform &amp; launch</strong><br><span class="fid-l">Days 26–30</span></td><td>The one-command stack behind the ten-minute fresh-clone target, and the Level 0 gate as the first published row on the eval scoreboard.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="prose">
+      <p>Level 0 ends with four services running, real traffic flowing, dashboards live, five incidents stageable on demand, and a gate that says 11 out of 11. From here the substrate stops being the thing under construction and becomes the thing the AI knows about.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><b>BELLWETHER · LEVEL 00 · THE SUBSTRATE</b> — Days 1–5 complete</p>
+    <p>An independent open-source project. Not affiliated with, endorsed by, or describing the internal systems of Netflix.</p>
+  </div>
+</footer>
+
+</body>
+</html>
