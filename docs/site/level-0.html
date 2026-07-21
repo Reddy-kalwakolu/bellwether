@@ -300,6 +300,78 @@
     background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
     padding: 1.2rem; overflow-x: auto; margin: 1.5rem 0; text-align: center;
   }
+  pre.mermaid svg { max-width: 100%; height: auto; }
+
+  /* Renderers may ignore an inline %%{init}%% theme directive, which leaves mermaid's
+     light default fills under this page's light text — invisible until selected.
+     These rules pin both sides. !important is required: mermaid injects its own
+     <style> with id-scoped selectors into the SVG, which out-specifies plain rules. */
+  pre.mermaid .node rect,
+  pre.mermaid .node circle,
+  pre.mermaid .node ellipse,
+  pre.mermaid .node polygon,
+  pre.mermaid .node path,
+  pre.mermaid .cluster rect,
+  pre.mermaid rect.actor,
+  pre.mermaid .actor,
+  pre.mermaid .labelBox,
+  pre.mermaid .note,
+  pre.mermaid .er.entityBox,
+  pre.mermaid .er.attributeBoxEven,
+  pre.mermaid .er.attributeBoxOdd {
+    fill: #16161d !important;
+    stroke: #33333d !important;
+  }
+
+  pre.mermaid text,
+  pre.mermaid tspan,
+  pre.mermaid .nodeLabel,
+  pre.mermaid .label,
+  pre.mermaid .messageText,
+  pre.mermaid .loopText,
+  pre.mermaid .noteText,
+  pre.mermaid .titleText,
+  pre.mermaid .er.entityLabel,
+  pre.mermaid .er.relationshipLabel,
+  pre.mermaid .er.attributeLabel {
+    fill: #eaeaef !important;
+    color: #eaeaef !important;
+  }
+  pre.mermaid .nodeLabel p,
+  pre.mermaid .label div,
+  pre.mermaid foreignObject div,
+  pre.mermaid foreignObject span {
+    color: #eaeaef !important;
+  }
+
+  pre.mermaid .flowchart-link,
+  pre.mermaid .messageLine0,
+  pre.mermaid .messageLine1,
+  pre.mermaid .actor-line,
+  pre.mermaid .relationshipLine,
+  pre.mermaid line {
+    stroke: #6b6b78 !important;
+    fill: none !important;
+  }
+  pre.mermaid marker path,
+  pre.mermaid .arrowheadPath,
+  pre.mermaid defs marker * {
+    fill: #6b6b78 !important;
+    stroke: #6b6b78 !important;
+  }
+
+  /* Edge labels sit last so their dimmer treatment wins over the text rule above. */
+  pre.mermaid .edgeLabel,
+  pre.mermaid .edgeLabel p,
+  pre.mermaid .edgeLabel span,
+  pre.mermaid .edgeLabel div {
+    color: #b6b6c2 !important;
+    background: #131318 !important;
+    background-color: #131318 !important;
+  }
+  pre.mermaid .edgeLabel rect,
+  pre.mermaid .edgeLabel foreignObject > div { fill: #131318 !important; }
+  pre.mermaid .edgeLabel text, pre.mermaid .edgeLabel tspan { fill: #b6b6c2 !important; }
 
   footer { padding: 3rem 0 4.5rem; }
   footer .wrap { font-family: var(--font-m); font-size: .72rem; color: var(--dimmer); letter-spacing: .06em; }
