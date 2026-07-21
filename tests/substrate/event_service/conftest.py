@@ -6,10 +6,13 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from substrate.event_service.db import get_session
+from substrate.event_service.main import app
 from substrate.event_service.models import Base
 
 CAMPAIGN_ID = "11111111-1111-1111-1111-111111111111"
@@ -48,3 +51,19 @@ def impression_payload() -> dict[str, Any]:
         "price_micros": 2_000,
         "occurred_at": datetime.now(UTC).isoformat(),
     }
+
+
+@pytest.fixture
+def client(session: Session) -> Iterator[TestClient]:
+    """A TestClient whose requests run against the in-memory session.
+
+    Built without entering its context manager on purpose: the lifespan provisions
+    the schema on the real Postgres engine, and this suite needs no infrastructure.
+    """
+
+    def override() -> Iterator[Session]:
+        yield session
+
+    app.dependency_overrides[get_session] = override
+    yield TestClient(app)
+    app.dependency_overrides.clear()
