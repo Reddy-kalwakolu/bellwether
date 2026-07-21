@@ -51,5 +51,7 @@ strict = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+# "platform" is on the path so the gate imports as `level0_gate`. The directory
+# cannot be a package: `platform` is a standard-library module name.
+pythonpath = [".", "platform"]
 addopts = "-q"
