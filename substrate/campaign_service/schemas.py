@@ -10,6 +10,13 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 CampaignStatus = Literal["draft", "active", "paused", "completed"]
 
+# Budgets are stored in a 32-bit integer column, which caps a budget at ~$2,147.
+# Stating that bound here makes it part of the API contract and a 422, rather than
+# a Postgres `NumericValueOutOfRange` surfacing as a 500. Day 5's simulator found
+# this by trying to inject a budget runaway. Raising the ceiling means migrating
+# the column to BIGINT, which is precisely the trigger ADR-0002 is waiting on.
+MAX_MICROS = 2_147_483_647
+
 
 class Targeting(BaseModel):
     """Who a campaign is eligible to reach."""
@@ -25,8 +32,8 @@ class CampaignCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     advertiser: str = Field(min_length=1, max_length=120)
     status: CampaignStatus = "draft"
-    budget_micros: int = Field(gt=0)
-    daily_budget_micros: int = Field(gt=0)
+    budget_micros: int = Field(gt=0, le=MAX_MICROS)
+    daily_budget_micros: int = Field(gt=0, le=MAX_MICROS)
     frequency_cap_per_day: int = Field(default=3, ge=1, le=50)
     targeting: Targeting = Field(default_factory=Targeting)
     brand_safety_exclusions: list[str] = Field(default_factory=list)
@@ -48,8 +55,8 @@ class CampaignUpdate(BaseModel):
 
     name: str | None = Field(default=None, min_length=1, max_length=120)
     status: CampaignStatus | None = None
-    budget_micros: int | None = Field(default=None, gt=0)
-    daily_budget_micros: int | None = Field(default=None, gt=0)
+    budget_micros: int | None = Field(default=None, gt=0, le=MAX_MICROS)
+    daily_budget_micros: int | None = Field(default=None, gt=0, le=MAX_MICROS)
     frequency_cap_per_day: int | None = Field(default=None, ge=1, le=50)
     targeting: Targeting | None = None
     brand_safety_exclusions: list[str] | None = None

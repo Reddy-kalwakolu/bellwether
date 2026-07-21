@@ -150,3 +150,31 @@ def test_metrics_endpoint_reports_request_counter(client: TestClient) -> None:
 
     assert "http_requests_total" in body
     assert 'service="campaign-service"' in body
+
+
+def test_a_budget_too_large_for_its_column_is_a_typed_422_not_a_500(
+    client: TestClient, campaign_payload: dict[str, Any]
+) -> None:
+    """Budgets live in a 32-bit column; overflowing it must not surface as a bare 500."""
+    campaign_payload["budget_micros"] = 3_000_000_000
+    campaign_payload["daily_budget_micros"] = 3_000_000_000
+
+    response = client.post("/campaigns", json=campaign_payload)
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == 422
+
+
+def test_a_database_range_error_is_rendered_as_a_typed_422() -> None:
+    """Defence in depth: no DataError from any column may surface as a bare 500."""
+    import asyncio
+
+    from sqlalchemy.exc import DataError
+
+    from substrate.campaign_service.main import data_error_handler
+
+    error = DataError("INSERT ...", None, Exception("integer out of range"))
+    response = asyncio.run(data_error_handler(None, error))  # type: ignore[arg-type]
+
+    assert response.status_code == 422
+    assert b"out of range" in response.body

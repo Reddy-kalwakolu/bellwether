@@ -17,6 +17,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy import select
+from sqlalchemy.exc import DataError
 from sqlalchemy.orm import Session
 
 from substrate.campaign_service.config import settings
@@ -72,6 +73,20 @@ async def http_exception_handler(_: Request, exc: HTTPException) -> JSONResponse
 async def validation_exception_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
     """Render validation failures in the same typed shape as other errors."""
     body = ErrorResponse.model_validate({"error": {"code": 422, "message": str(exc.errors())}})
+    return JSONResponse(status_code=422, content=body.model_dump())
+
+
+@app.exception_handler(DataError)
+async def data_error_handler(_: Request, exc: DataError) -> JSONResponse:
+    """A value the column cannot hold is the caller's problem, not a bare 500.
+
+    Budgets are stored in a 32-bit integer column, so anything above ~2.1 billion
+    micros comes back from Postgres as `NumericValueOutOfRange`. Day 5's simulator
+    found this by trying to inject a budget runaway.
+    """
+    body = ErrorResponse.model_validate(
+        {"error": {"code": 422, "message": f"value out of range for its column: {exc.orig}"}}
+    )
     return JSONResponse(status_code=422, content=body.model_dump())
 
 
