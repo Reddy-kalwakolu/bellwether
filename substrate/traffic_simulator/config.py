@@ -16,7 +16,10 @@ class Settings(BaseSettings):
     campaign_service_url: str = "http://localhost:8001"
     ad_decision_url: str = "http://localhost:8002"
     event_service_url: str = "http://localhost:8003"
-    requests_per_second: float = 5.0
+    # Sized against the seed campaigns' daily budgets: much above this and even
+    # pacing works correctly by throttling everything, which makes a healthy
+    # baseline indistinguishable from an injected failure.
+    requests_per_second: float = 2.0
     # Roughly an order of magnitude above real CTV click rates, so a demo shows
     # clicks within a minute instead of within an hour.
     click_probability: float = 0.08

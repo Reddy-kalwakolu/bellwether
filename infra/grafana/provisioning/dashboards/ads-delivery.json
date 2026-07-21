@@ -329,6 +329,68 @@
         "legend": { "displayMode": "list", "placement": "bottom", "showLegend": false },
         "tooltip": { "mode": "single", "sort": "none" }
       }
+    },
+    {
+      "id": 8,
+      "type": "state-timeline",
+      "title": "Injected scenario",
+      "description": "Which failure mode the traffic-simulator has active. Every anomaly on this dashboard should line up with a band here.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 23 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sim_scenario_info > 0",
+          "legendFormat": "{{scenario}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 0,
+            "fillOpacity": 70
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "steady" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#199e70" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "error_burst" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#d95926" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "traffic_surge" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#c98500" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "bad_config_deploy" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#d55181" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "budget_runaway" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#9085e9" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "single", "sort": "none" },
+        "mergeValues": true,
+        "showValue": "auto"
+      }
     }
   ]
 }

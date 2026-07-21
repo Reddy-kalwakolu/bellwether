@@ -29,6 +29,9 @@ SUBSTRATE_METRICS = {
     "ad_events_total",
     "ad_events_duplicate_total",
     "ad_spend_micros_total",
+    "sim_scenario_info",
+    "sim_ad_requests_total",
+    "sim_events_reported_total",
 }
 
 

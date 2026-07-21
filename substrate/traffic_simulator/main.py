@@ -28,7 +28,7 @@ from substrate.traffic_simulator.config import settings
 from substrate.traffic_simulator.driver import tick
 from substrate.traffic_simulator.population import Population
 from substrate.traffic_simulator.scenarios import SCENARIOS, Scenario
-from substrate.traffic_simulator.seeding import apply_mutation, seed_if_empty
+from substrate.traffic_simulator.seeding import apply_mutation, seed_campaigns
 
 logger = logging.getLogger("traffic_simulator.control")
 
@@ -177,7 +177,7 @@ async def _traffic_loop() -> None:
     """Generate traffic forever at the active scenario's rate."""
     clients = build_clients()
     with suppress(Exception):
-        seeded = await asyncio.to_thread(seed_if_empty, clients)
+        seeded = await asyncio.to_thread(seed_campaigns, clients)
         if seeded:
             log_context(logger, "seeded campaigns", service=settings.service_name, created=seeded)
 
@@ -302,5 +302,5 @@ def control(payload: ControlRequest, state: SimulatorState = Depends(get_state))
 
 @app.post("/seed")
 def seed(clients: SubstrateClients = Depends(build_clients)) -> dict[str, int]:
-    """Create the seed campaign set, unless the platform already has campaigns."""
-    return {"created": seed_if_empty(clients)}
+    """Create any seed campaign that is missing. Safe to call repeatedly."""
+    return {"created": seed_campaigns(clients)}

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from substrate.traffic_simulator.seeding import SEED_CAMPAIGNS, apply_mutation, seed_if_empty
+from substrate.traffic_simulator.seeding import SEED_CAMPAIGNS, apply_mutation, seed_campaigns
 
 
 class FakeClients:
@@ -48,16 +48,31 @@ def test_the_seed_set_is_three_campaigns_each_with_a_creative() -> None:
 
 def test_seeding_an_empty_platform_creates_the_whole_set() -> None:
     clients = FakeClients()
-    created = seed_if_empty(clients)
+    created = seed_campaigns(clients)
     assert created == 3
     assert len(clients.created) == 3
     assert len(clients.creatives) >= 3
 
 
-def test_seeding_is_a_no_op_when_campaigns_already_exist() -> None:
-    clients = FakeClients(campaigns=[{"id": "existing"}])
-    assert seed_if_empty(clients) == 0
-    assert clients.created == []
+def test_an_unrelated_campaign_does_not_suppress_the_seed_set() -> None:
+    """The bug this replaced: one leftover campaign starved the simulator."""
+    clients = FakeClients(campaigns=[{"id": "existing", "name": "Someone else's flight"}])
+    assert seed_campaigns(clients) == 3
+    assert len(clients.created) == 3
+
+
+def test_seeding_twice_creates_nothing_the_second_time() -> None:
+    clients = FakeClients()
+    assert seed_campaigns(clients) == 3
+    assert seed_campaigns(clients) == 0
+    assert len(clients.created) == 3
+
+
+def test_every_seed_budget_fits_a_32_bit_column() -> None:
+    """campaign-service stores micros in int4; exceeding it is a 500, not a 422."""
+    for entry in SEED_CAMPAIGNS:
+        assert entry["campaign"]["budget_micros"] <= 2_147_483_647
+        assert entry["campaign"]["daily_budget_micros"] <= 2_147_483_647
 
 
 def test_a_bad_config_deploy_retargets_every_campaign() -> None:
@@ -77,6 +92,8 @@ def test_a_budget_runaway_inflates_exactly_one_campaign() -> None:
     campaign_id, payload = clients.patches[0]
     assert campaign_id == "a"
     assert payload["daily_budget_micros"] > 50_000_000
+    # Must still fit int4, or the mutation is a 500 instead of a runaway.
+    assert payload["budget_micros"] <= 2_147_483_647
 
 
 def test_an_unknown_mutation_changes_nothing() -> None:
@@ -89,3 +106,21 @@ def test_mutations_are_skipped_when_there_are_no_campaigns() -> None:
     clients = FakeClients()
     assert apply_mutation(clients, "retarget_all_campaigns") == 0
     assert apply_mutation(clients, "inflate_one_daily_budget") == 0
+
+
+def test_the_rollback_restores_seed_targeting_and_budgets() -> None:
+    """After a bad config deploy, returning to steady must undo the real change."""
+    seed = SEED_CAMPAIGNS[0]["campaign"]
+    clients = FakeClients(campaigns=[{"id": "a", "name": seed["name"]}])
+
+    assert apply_mutation(clients, "restore_seed_config") == 1
+    _, payload = clients.patches[0]
+    assert payload["targeting"] == seed["targeting"]
+    assert payload["daily_budget_micros"] == seed["daily_budget_micros"]
+    assert payload["status"] == "active"
+
+
+def test_the_rollback_ignores_campaigns_it_did_not_create() -> None:
+    clients = FakeClients(campaigns=[{"id": "a", "name": "Someone else's flight"}])
+    assert apply_mutation(clients, "restore_seed_config") == 0
+    assert clients.patches == []

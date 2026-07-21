@@ -14,5 +14,8 @@ scrape_configs:
   - job_name: event-service
     static_configs:
       - targets: ["event-service:8000"]
+  - job_name: traffic-simulator
+    static_configs:
+      - targets: ["traffic-simulator:8000"]
 
-# Remaining substrate services register here as they are built (Day 5+).
+# Every Level 0 substrate service is registered. Level 1+ services join here.

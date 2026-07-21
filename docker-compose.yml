@@ -92,6 +92,28 @@ services:
       timeout: 3s
       retries: 5
 
+  traffic-simulator:
+    build:
+      context: .
+      dockerfile: substrate/traffic_simulator/Dockerfile
+    environment:
+      SIM_CAMPAIGN_SERVICE_URL: http://campaign-service:8000
+      SIM_AD_DECISION_URL: http://ad-decision-service:8000
+      SIM_EVENT_SERVICE_URL: http://event-service:8000
+    ports: ["8004:8000"]
+    depends_on:
+      campaign-service:
+        condition: service_healthy
+      ad-decision-service:
+        condition: service_healthy
+      event-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
 volumes:
   pgdata:
 

@@ -26,7 +26,9 @@ class Scenario:
 SCENARIOS: dict[str, Scenario] = {
     "steady": Scenario(
         name="steady",
-        summary="Baseline traffic. Nothing is wrong; this is what healthy looks like.",
+        summary="Baseline traffic, and a rollback: seed targeting and budgets are "
+        "restored, so this both is the healthy state and is how you get back to it.",
+        config_mutation="restore_seed_config",
     ),
     "error_burst": Scenario(
         name="error_burst",

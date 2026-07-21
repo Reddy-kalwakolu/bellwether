@@ -21,11 +21,12 @@ def test_every_scenario_is_named_and_summarized() -> None:
         assert scenario.summary
 
 
-def test_steady_is_the_baseline_and_changes_nothing() -> None:
+def test_steady_is_the_baseline_and_also_the_rollback() -> None:
+    """Injected failures change real config, so returning to steady must undo it."""
     steady = get("steady")
     assert steady.rate_multiplier == 1.0
     assert steady.malformed_fraction == 0.0
-    assert steady.config_mutation is None
+    assert steady.config_mutation == "restore_seed_config"
 
 
 def test_error_burst_sends_malformed_requests_without_touching_config() -> None:
