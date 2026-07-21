@@ -222,7 +222,7 @@ git commit -m "docs: ADR template, ADR-0001 (Compose over k8s), coding standards
 - Create: `docker-compose.yml`, `infra/prometheus/prometheus.yml`, `infra/grafana/provisioning/datasources/prometheus.yml`
 
 **Interfaces:**
-- Produces: running Postgres at `localhost:5432` (user/pass/db: `nexus`/`nexus`/`nexus`), Redis at `localhost:6379`, Prometheus at `localhost:9090`, Grafana at `localhost:3000` (anonymous admin). Day 2+ services attach to the `ads-nexus` network and get scraped by adding jobs to `infra/prometheus/prometheus.yml`.
+- Produces: running Postgres at `localhost:5433` (user/pass/db: `nexus`/`nexus`/`nexus`; in-network `postgres:5432`), Redis at `localhost:6380` (in-network `redis:6379`), Prometheus at `localhost:9090`, Grafana at `localhost:3000` (anonymous admin). Day 2+ services attach to the `ads-nexus` network and get scraped by adding jobs to `infra/prometheus/prometheus.yml`.
 
 - [ ] **Step 1: Create `docker-compose.yml`**
 
