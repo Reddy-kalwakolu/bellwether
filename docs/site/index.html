@@ -192,7 +192,7 @@
   <div class="bar-in">
     <span class="rec"><span class="rec-dot" aria-hidden="true"></span>REC</span>
     <span class="bar-title">BELLWETHER · BUILD LOG</span>
-    <span class="bar-day">DAY <b>04</b> / 30</span>
+    <span class="bar-day">DAY <b>05</b> / 30</span>
   </div>
 </div>
 
@@ -211,13 +211,13 @@
 
 <section class="pod" aria-label="30-day build timeline">
   <div class="wrap">
-    <div class="pod-head"><span>The 30-day pod</span><span>4 shipped · 26 queued</span></div>
+    <div class="pod-head"><span>The 30-day pod</span><span>5 shipped · 25 queued</span></div>
     <div class="pod-strip">
       <div class="seg shipped nohead" title="Day 1 — Repo, ADR-0001, infra skeleton, running doc v1, CI · shipped"></div>
       <div class="seg shipped nohead" title="Day 2 — campaign-service (CRUD, Postgres, tests, OpenAPI) · shipped"></div>
       <div class="seg shipped nohead" title="Day 3 — ad-decision-service (targeting, freq capping, brand safety, pacing) · shipped"></div>
-      <div class="seg shipped" title="Day 4 — event-service + Grafana dashboards · shipped"></div>
-      <div class="seg" title="Day 5 — traffic-simulator + failure injection · Level 0 gate"></div>
+      <div class="seg shipped nohead" title="Day 4 — event-service + Grafana dashboards · shipped"></div>
+      <div class="seg shipped" title="Day 5 — traffic-simulator + failure injection · Level 0 gate · shipped"></div>
       <div class="seg" title="Day 6 — document ingestion pipeline"></div>
       <div class="seg" title="Day 7 — chunking + embedding strategies"></div>
       <div class="seg" title="Day 8 — hybrid retrieval + reranking"></div>
@@ -402,6 +402,36 @@ flowchart LR
     PROM --> D1["Grafana · substrate-health&lt;br/&gt;traffic · errors · p95 · targets"]
     PROM --> D2["Grafana · ads-delivery&lt;br/&gt;fill rate · why candidates lost&lt;br/&gt;events · CTR · spend"]
     </pre>
+
+    <h3>Day 5 — the failure injection loop</h3>
+    <p>The simulator does not fake a symptom. It changes real configuration through campaign-service's public API, so the incident that follows has an actual cause sitting in an actual table — which is the only way Level 3's RCA agent can be honestly evaluated. No service contains a branch that knows it is being tested.</p>
+    <pre class="mermaid">
+flowchart LR
+    OP["POST /scenario&lt;br/&gt;{bad_config_deploy}"] --> SIM["traffic-simulator"]
+    SIM -->|"PATCH /campaigns/{id}&lt;br/&gt;targeting → AQ"| CS["campaign-service"]
+    SIM -->|"POST /ad-request&lt;br/&gt;at scenario rate"| ADS["ad-decision-service"]
+    ADS -->|"reads the changed config"| CS
+    ADS --> NOFILL["targeting_mismatch&lt;br/&gt;fill rate 43% → 2%"]
+    SIM -->|"impression / click"| EV["event-service"]
+    NOFILL --> PROM["Prometheus"]
+    EV --> PROM
+    PROM --> GRAF["Grafana&lt;br/&gt;the incident, visible"]
+    GRAF -.->|"Level 3"| RCA["ops agent&lt;br/&gt;finds the real cause"]
+    </pre>
+
+    <h3>Day 5 — the Level 0 gate</h3>
+    <p>The spec's Level 0 metric turned into a script that exits zero or names the check that failed. Its decision logic is pure and unit-tested; the live run only supplies numbers, so it cannot pass by accident with the substrate switched off. On its first run it failed itself — the traffic-surge check was comparing the surged rate against the surged rate — which is exactly what a gate is for.</p>
+    <pre class="mermaid">
+flowchart TB
+    G["platform/level0_gate.py"] --> H["5 health endpoints"]
+    G --> T["Prometheus scrapes&lt;br/&gt;all 4 services"]
+    G --> S1["steady&lt;br/&gt;serves ads"]
+    G --> S2["error_burst&lt;br/&gt;produces 422s"]
+    G --> S3["traffic_surge&lt;br/&gt;raises the rate"]
+    G --> S4["bad_config_deploy&lt;br/&gt;collapses fill rate"]
+    G --> S5["budget_runaway&lt;br/&gt;changes config"]
+    H & T & S1 & S2 & S3 & S4 & S5 --> R["11/11 · exit 0&lt;br/&gt;platform left healthy"]
+    </pre>
   </div>
 </section>
 
@@ -416,7 +446,7 @@ flowchart LR
         <tr><td class="mono">02</td><td class="mono">0</td><td>campaign-service (CRUD, Postgres, tests, OpenAPI)</td><td class="st done">● SHIPPED</td></tr>
         <tr><td class="mono">03</td><td class="mono">0</td><td>ad-decision-service (targeting, freq capping, brand safety, pacing)</td><td class="st done">● SHIPPED</td></tr>
         <tr><td class="mono">04</td><td class="mono">0</td><td>event-service + observability stack (Grafana dashboards, JSON logging lib)</td><td class="st done">● SHIPPED</td></tr>
-        <tr><td class="mono">05</td><td class="mono">0</td><td>traffic-simulator + failure injection · Level 0 quality gate</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">05</td><td class="mono">0</td><td>traffic-simulator + failure injection · Level 0 quality gate</td><td class="st done">● SHIPPED</td></tr>
         <tr><td class="mono">06</td><td class="mono">1</td><td>Document ingestion pipeline</td><td class="st plan">○ QUEUED</td></tr>
         <tr><td class="mono">07</td><td class="mono">1</td><td>Chunking + embedding strategies (comparison documented)</td><td class="st plan">○ QUEUED</td></tr>
         <tr><td class="mono">08</td><td class="mono">1</td><td>Hybrid retrieval + reranking</td><td class="st plan">○ QUEUED</td></tr>
@@ -456,6 +486,10 @@ flowchart LR
       <p><strong>bellwether</strong> <em>(noun)</em> — a leading indicator; the thing you watch to know where something is heading before the rest of the picture catches up. That is the job twice over: the first AI engineer on a team is a leading indicator of how that team will build a year from now, and the eval scoreboard is a leading indicator of whether the agents are actually making the work better.</p>
     </div>
     <div class="card">
+      <h3>ADR-0005 — Real failures, not mocked ones</h3>
+      <p>The simulator breaks the platform by changing real configuration through public APIs — a bad config deploy really does <code>PATCH</code> every campaign's targeting, and the decision path then behaves perfectly while fill rate collapses. No service has a branch that knows it is being tested. The reason is Level 3: an ops agent evaluated against a mocked failure can only ever find the mock. Because the change is real, recovery is real too — <code>steady</code> is a genuine rollback. Day one of running it found two real defects in the platform it was pointed at.</p>
+    </div>
+    <div class="card">
       <h3>ADR-0004 — Idempotent on the primary key, aggregated on read</h3>
       <p>A delivery report gets retried whenever a network hiccups, so the caller chooses the <code>event_id</code> and the primary key does the deduplication — a check-then-insert races, an insert that collides cannot. Delivery numbers are then a single <code>GROUP BY</code> over the event table rather than a rollup that can drift out of sync with it. The trigger that flips this: Day 5's simulator, when sustained load pushes <code>/delivery</code> past ~200&nbsp;ms.</p>
     </div>
@@ -478,11 +512,11 @@ flowchart LR
   <div class="wrap">
     <p class="sec-eyebrow">SEQ 05 · EVAL SCOREBOARD</p>
     <h2>Numbers or it's a demo</h2>
-    <p>Actuals publish as each level's quality gate runs. Empty cells are honest cells.</p>
+    <p>Actuals publish as each level's quality gate runs. Empty cells are honest cells. The Level 0 number is what <code>platform/level0_gate.py</code> printed against the running stack — five health endpoints, one scrape check, and one per injectable failure mode.</p>
     <table class="tbl">
       <thead><tr><th class="mono">Lvl</th><th>Metric</th><th class="mono">Target</th><th class="mono">Actual</th></tr></thead>
       <tbody>
-        <tr><td class="mono">L0</td><td>Services healthy under simulator load; failure injection works</td><td class="mono">100%</td><td class="mono">—</td></tr>
+        <tr><td class="mono">L0</td><td>Services healthy under simulator load; failure injection works</td><td class="mono">100%</td><td class="mono st done">11/11 · 100%</td></tr>
         <tr><td class="mono">L1</td><td>Context relevance (50-query synthetic dataset)</td><td class="mono">&gt;85%</td><td class="mono">—</td></tr>
         <tr><td class="mono">L1</td><td>Retrieval latency</td><td class="mono">&lt;500ms</td><td class="mono">—</td></tr>
         <tr><td class="mono">L2</td><td>Generated code compiles / passes lint + types</td><td class="mono">100%</td><td class="mono">—</td></tr>
@@ -501,7 +535,7 @@ flowchart LR
 
 <footer>
   <div class="wrap">
-    <p><b>DAY 04 / 30</b> · BUILT IN PUBLIC</p>
+    <p><b>DAY 05 / 30</b> · BUILT IN PUBLIC</p>
     <p>BELLWETHER is an independent open-source project, not affiliated with or endorsed by Netflix.</p>
   </div>
 </footer>
