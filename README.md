@@ -72,10 +72,19 @@ flowchart TB
 ## Quickstart
 
 ```bash
-uv sync --group dev      # install toolchain
-uv run pytest            # run tests
-docker compose up -d     # start infra (Postgres, Redis, Prometheus, Grafana)
+uv sync --group dev          # install toolchain
+uv run pytest                # run tests
+docker compose up -d --build # start the stack
 ```
+
+| Service | URL |
+|---|---|
+| campaign-service API docs | http://localhost:8001/docs |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3000 |
+
+Postgres is published on host port 5433 and Redis on 6380, so the stack does not
+collide with other local database instances.
 
 ## Docs
 

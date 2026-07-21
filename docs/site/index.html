@@ -107,6 +107,7 @@
   }
   .seg:hover { transform: translateY(-3px); border-color: var(--dim); }
   .seg.shipped { background: var(--signal); border-color: var(--signal); box-shadow: 0 0 18px rgba(229, 9, 20, .45); }
+  .seg.nohead::after { display: none; }
   .seg.shipped::after {
     content: ""; position: absolute; right: -3px; top: -6px; bottom: -6px;
     width: 2px; background: var(--text); border-radius: 2px;   /* playhead */
@@ -191,7 +192,7 @@
   <div class="bar-in">
     <span class="rec"><span class="rec-dot" aria-hidden="true"></span>REC</span>
     <span class="bar-title">BELLWETHER · BUILD LOG</span>
-    <span class="bar-day">DAY <b>01</b> / 30</span>
+    <span class="bar-day">DAY <b>02</b> / 30</span>
   </div>
 </div>
 
@@ -210,10 +211,10 @@
 
 <section class="pod" aria-label="30-day build timeline">
   <div class="wrap">
-    <div class="pod-head"><span>The 30-day pod</span><span>1 shipped · 29 queued</span></div>
+    <div class="pod-head"><span>The 30-day pod</span><span>2 shipped · 28 queued</span></div>
     <div class="pod-strip">
-      <div class="seg shipped" title="Day 1 — Repo, ADR-0001, infra skeleton, running doc v1, CI · shipped"></div>
-      <div class="seg" title="Day 2 — campaign-service (CRUD, Postgres, tests, OpenAPI)"></div>
+      <div class="seg shipped nohead" title="Day 1 — Repo, ADR-0001, infra skeleton, running doc v1, CI · shipped"></div>
+      <div class="seg shipped" title="Day 2 — campaign-service (CRUD, Postgres, tests, OpenAPI) · shipped"></div>
       <div class="seg" title="Day 3 — ad-decision-service (targeting, freq capping, brand safety, pacing)"></div>
       <div class="seg" title="Day 4 — event-service + observability stack"></div>
       <div class="seg" title="Day 5 — traffic-simulator + failure injection · Level 0 gate"></div>
@@ -317,6 +318,32 @@ flowchart LR
     NET --> GRAF["Grafana :3000"]
     PROM --> GRAF
     </pre>
+
+    <h3>Day 2 — the campaign data model</h3>
+    <pre class="mermaid">
+erDiagram
+    CAMPAIGN ||--o{ CREATIVE : "carries"
+    CAMPAIGN {
+        uuid id PK
+        string name
+        string advertiser
+        string status "draft|active|paused|completed"
+        int budget_micros
+        int daily_budget_micros
+        int frequency_cap_per_day
+        json targeting "countries, device_types, content_ratings"
+        json brand_safety_exclusions
+        datetime starts_at
+        datetime ends_at
+    }
+    CREATIVE {
+        uuid id PK
+        uuid campaign_id FK
+        string name
+        int duration_seconds
+        string asset_url
+    }
+    </pre>
   </div>
 </section>
 
@@ -328,7 +355,7 @@ flowchart LR
       <thead><tr><th class="mono">Day</th><th class="mono">Lvl</th><th>Deliverable</th><th class="mono">Status</th></tr></thead>
       <tbody>
         <tr><td class="mono">01</td><td class="mono">0</td><td>Repo, architecture docs, README, running doc v1, ADR-0001, infra skeleton, CI</td><td class="st done">● SHIPPED</td></tr>
-        <tr><td class="mono">02</td><td class="mono">0</td><td>campaign-service (CRUD, Postgres, tests, OpenAPI)</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">02</td><td class="mono">0</td><td>campaign-service (CRUD, Postgres, tests, OpenAPI)</td><td class="st done">● SHIPPED</td></tr>
         <tr><td class="mono">03</td><td class="mono">0</td><td>ad-decision-service (targeting, freq capping, brand safety, pacing)</td><td class="st plan">○ QUEUED</td></tr>
         <tr><td class="mono">04</td><td class="mono">0</td><td>event-service + observability stack (Grafana dashboards, JSON logging lib)</td><td class="st plan">○ QUEUED</td></tr>
         <tr><td class="mono">05</td><td class="mono">0</td><td>traffic-simulator + failure injection · Level 0 quality gate</td><td class="st plan">○ QUEUED</td></tr>
@@ -371,6 +398,10 @@ flowchart LR
       <p><strong>bellwether</strong> <em>(noun)</em> — a leading indicator; the thing you watch to know where something is heading before the rest of the picture catches up. That is the job twice over: the first AI engineer on a team is a leading indicator of how that team will build a year from now, and the eval scoreboard is a leading indicator of whether the agents are actually making the work better.</p>
     </div>
     <div class="card">
+      <h3>ADR-0002 — <code>create_all</code> over Alembic, for now</h3>
+      <p>The schema has one writer and no data anyone depends on, and it will churn daily through Day 5. Migrations written against a schema that changes every day are noise, not safety. The trigger that flips this: the first second service that reads these tables.</p>
+    </div>
+    <div class="card">
       <h3>ADR-0001 — Docker Compose over Kubernetes</h3>
       <p>Four services run by one developer on one machine. Compose gives one-command startup and reproducible demos; Kubernetes adds operational overhead while proving nothing relevant to AI foundation engineering. Choosing infrastructure proportionate to the problem is the signal.</p>
     </div>
@@ -404,7 +435,7 @@ flowchart LR
 
 <footer>
   <div class="wrap">
-    <p><b>DAY 01 / 30</b> · BUILT IN PUBLIC</p>
+    <p><b>DAY 02 / 30</b> · BUILT IN PUBLIC</p>
     <p>BELLWETHER is an independent open-source project, not affiliated with or endorsed by Netflix.</p>
   </div>
 </footer>
