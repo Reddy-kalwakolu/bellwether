@@ -34,7 +34,8 @@ SUBSTRATE_METRICS = {
 
 def load(path: Path) -> dict[str, Any]:
     """Parse one dashboard file."""
-    return json.loads(path.read_text(encoding="utf-8"))
+    dashboard: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return dashboard
 
 
 def panels(dashboard: dict[str, Any]) -> list[dict[str, Any]]:
