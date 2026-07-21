@@ -4,98 +4,257 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ADS-NEXUS — Build Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
-  mermaid.initialize({ startOnLoad: true, theme: "dark" });
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: "base",
+    themeVariables: {
+      darkMode: true,
+      background: "#131318",
+      primaryColor: "#1c1c24",
+      primaryTextColor: "#eaeaef",
+      primaryBorderColor: "#3a3a46",
+      secondaryColor: "#1c1c24",
+      tertiaryColor: "#16161d",
+      lineColor: "#6b6b78",
+      textColor: "#c9c9d2",
+      fontFamily: "JetBrains Mono, monospace",
+      fontSize: "13px"
+    }
+  });
 </script>
 <style>
-  :root { color-scheme: dark; }
-  * { box-sizing: border-box; }
+  :root {
+    --ink: #0a0a0d;
+    --panel: #131318;
+    --panel-2: #16161d;
+    --line: #26262e;
+    --text: #eaeaef;
+    --dim: #9a9aa6;
+    --signal: #e50914;
+    --shipped: #46d369;
+    --font-display: "Bricolage Grotesque", sans-serif;
+    --font-body: "Instrument Sans", sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { scroll-behavior: smooth; }
   body {
-    margin: 0 auto; max-width: 960px; padding: 2rem 1.25rem 4rem;
-    background: #0b0b0f; color: #e5e5e5;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    line-height: 1.6;
+    background: var(--ink); color: var(--text);
+    font-family: var(--font-body); line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
   }
-  h1 { color: #e50914; font-size: 2.6rem; margin: 0 0 .25rem; letter-spacing: -.02em; }
-  h2 { color: #fff; border-bottom: 2px solid #e50914; padding-bottom: .35rem; margin-top: 3rem; }
-  h3 { color: #e5e5e5; }
-  a { color: #f5c518; text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  .muted { color: #8a8a94; font-size: .85rem; }
-  .tagline { font-size: 1.15rem; color: #b8b8c0; margin: 0 0 .75rem; }
-  .links { margin: 1rem 0; }
-  .links a { margin-right: 1.25rem; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; border-radius: 2px; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 1.5rem; }
+
+  /* ---- top bar ---- */
+  .bar {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--ink) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar-in {
+    max-width: 1080px; margin: 0 auto; padding: .65rem 1.5rem;
+    display: flex; align-items: center; gap: 1rem;
+    font-family: var(--font-mono); font-size: .72rem; letter-spacing: .08em;
+  }
+  .rec { display: flex; align-items: center; gap: .45rem; color: var(--signal); font-weight: 700; }
+  .rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--signal); animation: blink 1.6s steps(2, start) infinite; }
+  @keyframes blink { to { visibility: hidden; } }
+  .bar-title { color: var(--dim); }
+  .bar-day { margin-left: auto; color: var(--text); }
+  .bar-day b { color: var(--signal); }
+
+  /* ---- hero ---- */
+  .hero { padding: 5.5rem 0 3rem; border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    font-family: var(--font-mono); font-size: .72rem; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--dim); margin-bottom: 1.1rem;
+  }
+  .eyebrow .tick { color: var(--signal); }
+  h1.mark {
+    font-family: var(--font-display); font-weight: 800;
+    font-size: clamp(3rem, 9vw, 6.5rem); line-height: .95; letter-spacing: -.03em;
+  }
+  h1.mark .nx { color: var(--signal); }
+  .hero p.lede { max-width: 46ch; margin-top: 1.4rem; font-size: 1.12rem; color: var(--dim); }
+  .hero .meta {
+    margin-top: 2rem; display: flex; flex-wrap: wrap; gap: 1.5rem;
+    font-family: var(--font-mono); font-size: .78rem; color: var(--dim);
+  }
+  .hero .meta a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--signal); padding-bottom: 2px; }
+  .hero .meta a:hover { color: var(--signal); }
+
+  /* ---- signature: the pod timeline ---- */
+  .pod { padding: 2.6rem 0 3.2rem; border-bottom: 1px solid var(--line); }
+  .pod-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    font-family: var(--font-mono); font-size: .72rem; letter-spacing: .12em;
+    color: var(--dim); margin-bottom: .9rem; text-transform: uppercase;
+  }
+  .pod-strip { display: grid; grid-template-columns: repeat(30, 1fr); gap: 4px; }
+  .seg {
+    height: 34px; border-radius: 3px; background: var(--panel-2);
+    border: 1px solid var(--line); position: relative; cursor: default;
+    transition: transform .15s ease, border-color .15s ease;
+  }
+  .seg:hover { transform: translateY(-3px); border-color: var(--dim); }
+  .seg.shipped { background: var(--signal); border-color: var(--signal); box-shadow: 0 0 18px rgba(229, 9, 20, .45); }
+  .seg.shipped::after {
+    content: ""; position: absolute; right: -3px; top: -6px; bottom: -6px;
+    width: 2px; background: var(--text); border-radius: 2px;   /* playhead */
+  }
+  .pod-levels {
+    display: grid; grid-template-columns: repeat(30, 1fr); gap: 4px; margin-top: .5rem;
+    font-family: var(--font-mono); font-size: .62rem; color: var(--dim); letter-spacing: .1em;
+  }
+  .pod-levels span { text-align: left; }
+  .pod-levels .l0 { grid-column: 1 / 6; }
+  .pod-levels .l1 { grid-column: 6 / 11; }
+  .pod-levels .l2 { grid-column: 11 / 16; }
+  .pod-levels .l3 { grid-column: 16 / 21; }
+  .pod-levels .l4 { grid-column: 21 / 26; }
+  .pod-levels .l5 { grid-column: 26 / 31; }
+  .pod-levels span { border-left: 1px solid var(--line); padding-left: .45rem; }
+
+  /* ---- sections ---- */
+  section.block { padding: 3.6rem 0; border-bottom: 1px solid var(--line); }
+  .sec-eyebrow {
+    font-family: var(--font-mono); font-size: .7rem; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--signal); margin-bottom: .8rem;
+  }
+  h2 {
+    font-family: var(--font-display); font-weight: 600;
+    font-size: clamp(1.6rem, 3.4vw, 2.3rem); letter-spacing: -.02em; margin-bottom: 1rem;
+  }
+  h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.1rem; margin: 2rem 0 .8rem; }
+  .block > .wrap > p { max-width: 62ch; color: var(--dim); }
+  .block strong { color: var(--text); }
+
+  pre.mermaid {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 1.2rem; overflow-x: auto; margin: 1.4rem 0;
+  }
+
+  /* ---- tables ---- */
+  .tbl { width: 100%; border-collapse: collapse; margin-top: 1.2rem; font-size: .86rem; }
+  .tbl th {
+    font-family: var(--font-mono); font-size: .68rem; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--dim); font-weight: 500;
+    text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--line);
+  }
+  .tbl td { padding: .55rem .7rem; border-bottom: 1px solid var(--panel-2); vertical-align: top; }
+  .tbl tr:hover td { background: var(--panel); }
+  .tbl td.mono, .tbl th.mono { font-family: var(--font-mono); font-size: .78rem; }
+  .st { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .06em; white-space: nowrap; }
+  .st.done { color: var(--shipped); }
+  .st.plan { color: var(--dim); }
+
+  /* ---- decision cards ---- */
   .card {
-    border: 1px solid #2a2a33; border-radius: 12px; padding: 1.25rem;
-    margin: 1rem 0; background: #121218;
+    border: 1px solid var(--line); border-left: 3px solid var(--signal);
+    border-radius: 8px; background: var(--panel); padding: 1.3rem 1.5rem; margin-top: 1.2rem;
   }
-  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .92rem; }
-  th { text-align: left; color: #b8b8c0; border-bottom: 1px solid #3a3a44; padding: .45rem .6rem; }
-  td { border-bottom: 1px solid #1e1e26; padding: .45rem .6rem; }
-  tr:hover td { background: #16161e; }
-  pre.mermaid { background: #121218; border: 1px solid #2a2a33; border-radius: 12px; padding: 1rem; overflow-x: auto; }
-  .status-done { color: #46d369; }
-  .status-planned { color: #8a8a94; }
-  footer { margin-top: 4rem; border-top: 1px solid #2a2a33; padding-top: 1rem; }
+  .card h3 { margin: 0 0 .4rem; }
+  .card p { color: var(--dim); font-size: .95rem; }
+
+  footer { padding: 2.6rem 0 4rem; }
+  footer .wrap { font-family: var(--font-mono); font-size: .74rem; color: var(--dim); letter-spacing: .06em; }
+  footer b { color: var(--text); }
+
+  /* ---- load sequence ---- */
+  @media (prefers-reduced-motion: no-preference) {
+    .hero, .pod { animation: rise .7s cubic-bezier(.2, .7, .2, 1) both; }
+    .pod { animation-delay: .18s; }
+    .seg { animation: segin .5s ease both; }
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(18px); } }
+  @keyframes segin { from { opacity: 0; } }
+
+  @media (max-width: 640px) {
+    .seg { height: 22px; }
+    .pod-levels { font-size: .52rem; }
+    .hero { padding-top: 3.5rem; }
+  }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>ADS-NEXUS</h1>
-  <p class="tagline">An AI-native engineering platform for ad-tech teams — built in public, 30 days.</p>
-  <p class="muted">ADS-NEXUS is an independent open-source project, not affiliated with or endorsed by Netflix.</p>
-  <div class="links">
-    <a href="#">GitHub repo</a>
-    <a href="#">Video series</a>
-    <span class="muted">Target role: Netflix Staff AI Engineer — AI Foundation &amp; Tooling (AJRT30201)</span>
+<div class="bar" role="banner">
+  <div class="bar-in">
+    <span class="rec"><span class="rec-dot" aria-hidden="true"></span>REC</span>
+    <span class="bar-title">ADS-NEXUS · BUILD LOG</span>
+    <span class="bar-day">DAY <b>01</b> / 30</span>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow"><span class="tick">▸</span> BUILT IN PUBLIC · TARGET ROLE: NETFLIX STAFF AI ENGINEER — AI FOUNDATION &amp; TOOLING (AJRT30201)</p>
+    <h1 class="mark">ADS-<span class="nx">NEXUS</span></h1>
+    <p class="lede">An AI-native engineering platform for ad-tech teams. A mini ads platform as the substrate; a context layer, dev agents, ops agents, and an orchestrator on top — every capability shipped with published eval numbers.</p>
+    <div class="meta">
+      <a href="#">GitHub repo</a>
+      <a href="#">Video series</a>
+      <span>Independent open-source project, not affiliated with or endorsed by Netflix.</span>
+    </div>
   </div>
 </header>
 
-<section id="tracker">
-  <h2>Day tracker</h2>
-  <table>
-    <thead><tr><th>Day</th><th>Level</th><th>Deliverable</th><th>Status</th></tr></thead>
-    <tbody>
-      <tr><td>1</td><td>0</td><td>Repo, architecture docs, README, running doc v1, ADR-0001, infra skeleton, CI</td><td class="status-done">✅ shipped</td></tr>
-      <tr><td>2</td><td>0</td><td>campaign-service (CRUD, Postgres, tests, OpenAPI)</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>3</td><td>0</td><td>ad-decision-service (targeting, freq capping, brand safety, pacing)</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>4</td><td>0</td><td>event-service + observability stack (Grafana dashboards, JSON logging lib)</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>5</td><td>0</td><td>traffic-simulator + failure injection; Level 0 quality gate</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>6</td><td>1</td><td>Document ingestion pipeline</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>7</td><td>1</td><td>Chunking + embedding strategies (comparison documented)</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>8</td><td>1</td><td>Hybrid retrieval + reranking</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>9</td><td>1</td><td>AST knowledge graph + visualization</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>10</td><td>1</td><td>MCP server + retrieval eval suite; quality gate</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>11</td><td>2</td><td>Code-generation agent</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>12</td><td>2</td><td>Test-generation agent + mutation testing</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>13</td><td>2</td><td>PR pre-review agent (GitHub Actions)</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>14</td><td>2</td><td>Deployment-validation agent</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>15</td><td>2</td><td>E2E pipeline: ticket → code → test → PR → deploy; quality gate</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>16</td><td>3</td><td>Log intelligence pipeline</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>17</td><td>3</td><td>Incident triage agent</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>18</td><td>3</td><td>RCA agent</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>19</td><td>3</td><td>Guided resolution + runbook generation</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>20</td><td>3</td><td>Self-healing loop E2E demo; quality gate</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>21</td><td>4</td><td>Agent communication protocol</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>22</td><td>4</td><td>Parallel agent execution</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>23</td><td>4</td><td>Conflict resolution + escalation</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>24</td><td>4</td><td>Human-in-the-loop gates</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>25</td><td>4</td><td>Actor-Critic process-audit evals; quality gate</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>26</td><td>5</td><td>AI-first dev environment (devcontainer, one-command setup)</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>27</td><td>5</td><td>CI/CD AI gates</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>28</td><td>5</td><td>Consolidated eval dashboard</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>29</td><td>5</td><td>Grand demo (feature E2E through the whole platform)</td><td class="status-planned">⬜ planned</td></tr>
-      <tr><td>30</td><td>5</td><td>Launch: open-source release, outreach kickoff</td><td class="status-planned">⬜ planned</td></tr>
-    </tbody>
-  </table>
+<section class="pod" aria-label="30-day build timeline">
+  <div class="wrap">
+    <div class="pod-head"><span>The 30-day pod</span><span>1 shipped · 29 queued</span></div>
+    <div class="pod-strip">
+      <div class="seg shipped" title="Day 1 — Repo, ADR-0001, infra skeleton, running doc v1, CI · shipped"></div>
+      <div class="seg" title="Day 2 — campaign-service (CRUD, Postgres, tests, OpenAPI)"></div>
+      <div class="seg" title="Day 3 — ad-decision-service (targeting, freq capping, brand safety, pacing)"></div>
+      <div class="seg" title="Day 4 — event-service + observability stack"></div>
+      <div class="seg" title="Day 5 — traffic-simulator + failure injection · Level 0 gate"></div>
+      <div class="seg" title="Day 6 — document ingestion pipeline"></div>
+      <div class="seg" title="Day 7 — chunking + embedding strategies"></div>
+      <div class="seg" title="Day 8 — hybrid retrieval + reranking"></div>
+      <div class="seg" title="Day 9 — AST knowledge graph"></div>
+      <div class="seg" title="Day 10 — MCP server + retrieval evals · Level 1 gate"></div>
+      <div class="seg" title="Day 11 — code-generation agent"></div>
+      <div class="seg" title="Day 12 — test-generation agent + mutation testing"></div>
+      <div class="seg" title="Day 13 — PR pre-review agent"></div>
+      <div class="seg" title="Day 14 — deployment-validation agent"></div>
+      <div class="seg" title="Day 15 — E2E dev pipeline · Level 2 gate"></div>
+      <div class="seg" title="Day 16 — log intelligence pipeline"></div>
+      <div class="seg" title="Day 17 — incident triage agent"></div>
+      <div class="seg" title="Day 18 — RCA agent"></div>
+      <div class="seg" title="Day 19 — guided resolution + runbooks"></div>
+      <div class="seg" title="Day 20 — self-healing loop demo · Level 3 gate"></div>
+      <div class="seg" title="Day 21 — agent communication protocol"></div>
+      <div class="seg" title="Day 22 — parallel agent execution"></div>
+      <div class="seg" title="Day 23 — conflict resolution + escalation"></div>
+      <div class="seg" title="Day 24 — human-in-the-loop gates"></div>
+      <div class="seg" title="Day 25 — Actor-Critic process audits · Level 4 gate"></div>
+      <div class="seg" title="Day 26 — AI-first dev environment"></div>
+      <div class="seg" title="Day 27 — CI/CD AI gates"></div>
+      <div class="seg" title="Day 28 — consolidated eval dashboard"></div>
+      <div class="seg" title="Day 29 — grand demo"></div>
+      <div class="seg" title="Day 30 — launch + outreach · Level 5 gate"></div>
+    </div>
+    <div class="pod-levels" aria-hidden="true">
+      <span class="l0">L0 SUBSTRATE</span><span class="l1">L1 CONTEXT</span><span class="l2">L2 DEV AGENTS</span><span class="l3">L3 OPS AGENTS</span><span class="l4">L4 ORCHESTRATION</span><span class="l5">L5 LAUNCH</span>
+    </div>
+  </div>
 </section>
 
-<section id="overview">
-  <h2>System overview</h2>
-  <p>The <strong>Substrate</strong> is a mini Netflix-style ads platform — four small services producing real traffic, logs, metrics, and stageable incidents. The <strong>Nexus</strong> is the AI foundation that operates on it: a grounded context layer, development and operations agents, a multi-agent orchestrator, and an eval harness that publishes numbers for every capability.</p>
-  <pre class="mermaid">
+<section class="block" id="overview">
+  <div class="wrap">
+    <p class="sec-eyebrow">SEQ 01 · SYSTEM OVERVIEW</p>
+    <h2>Two systems, one thesis</h2>
+    <p>The <strong>Substrate</strong> is a mini Netflix-style ads platform — four small services producing real traffic, logs, metrics, and stageable incidents. The <strong>Nexus</strong> is the AI foundation that operates on it. The thesis: <strong>AI velocity with provable quality</strong> — agents are easy to demo and hard to trust, so every capability here ships with numbers.</p>
+    <pre class="mermaid">
 flowchart TB
     subgraph NEXUS["NEXUS — AI Foundation"]
         CTX["Context Layer&lt;br/&gt;RAG + Knowledge Graph + MCP"]
@@ -121,15 +280,18 @@ flowchart TB
     SUB --> OBS
     OBS --> OPS
     SUB -. "code, docs, logs, metrics" .-> CTX
-  </pre>
+    </pre>
+  </div>
 </section>
 
-<section id="level-0">
-  <h2>Level 0 — The Substrate (Days 1–5)</h2>
-  <p><strong>Goal:</strong> a small but production-shaped ads platform that gives every later AI capability something real to operate on — real traffic to observe, real logs and metrics to correlate, real incidents to diagnose. No mock-data theater.</p>
+<section class="block" id="level-0">
+  <div class="wrap">
+    <p class="sec-eyebrow">SEQ 02 · LEVEL 0 — THE SUBSTRATE (DAYS 1–5)</p>
+    <h2>Something real to operate on</h2>
+    <p>Every later AI capability needs real traffic to observe, real logs and metrics to correlate, real incidents to diagnose. Level 0 builds that: a small but production-shaped ads platform. No mock-data theater.</p>
 
-  <h3>The ad-request path</h3>
-  <pre class="mermaid">
+    <h3>The ad-request path</h3>
+    <pre class="mermaid">
 sequenceDiagram
     participant SIM as traffic-simulator
     participant ADS as ad-decision-service
@@ -143,10 +305,10 @@ sequenceDiagram
     ADS-->>SIM: selected ad
     SIM->>EV: impression / click events
     EV-->>EV: aggregate, emit metrics
-  </pre>
+    </pre>
 
-  <h3>Day 1 — infrastructure skeleton</h3>
-  <pre class="mermaid">
+    <h3>Day 1 — infrastructure skeleton</h3>
+    <pre class="mermaid">
 flowchart LR
     DEVBOX["Developer machine&lt;br/&gt;uv + pytest + ruff + mypy"] -->|docker compose up| NET["ads-nexus network"]
     NET --> PG[("Postgres 16")]
@@ -154,42 +316,93 @@ flowchart LR
     NET --> PROM["Prometheus :9090"]
     NET --> GRAF["Grafana :3000"]
     PROM --> GRAF
-  </pre>
-</section>
-
-<section id="decisions">
-  <h2>Decisions so far</h2>
-  <div class="card">
-    <h3>ADR-0001: Docker Compose over Kubernetes</h3>
-    <p>Four services run by one developer on one machine. Compose gives one-command startup and reproducible demos; Kubernetes would add operational overhead while proving nothing relevant to AI foundation engineering. <a href="#">Full ADR</a></p>
+    </pre>
   </div>
 </section>
 
-<section id="evals">
-  <h2>Eval scoreboard</h2>
-  <p class="muted">Actuals publish as each level's quality gate runs.</p>
-  <table>
-    <thead><tr><th>Level</th><th>Metric</th><th>Target</th><th>Actual</th></tr></thead>
-    <tbody>
-      <tr><td>L0</td><td>Services healthy under simulator load; failure injection works</td><td>100%</td><td>—</td></tr>
-      <tr><td>L1</td><td>Context relevance (50-query synthetic dataset)</td><td>&gt;85%</td><td>—</td></tr>
-      <tr><td>L1</td><td>Retrieval latency</td><td>&lt;500ms</td><td>—</td></tr>
-      <tr><td>L2</td><td>Generated code compiles / passes lint + types</td><td>100%</td><td>—</td></tr>
-      <tr><td>L2</td><td>Generated test pass rate; mutation score improvement</td><td>&gt;90%</td><td>—</td></tr>
-      <tr><td>L2</td><td>PR reviewer seeded-bug catch rate</td><td>measured &amp; published</td><td>—</td></tr>
-      <tr><td>L3</td><td>Synthetic incidents flagged</td><td>5/5</td><td>—</td></tr>
-      <tr><td>L3</td><td>RCA correct root cause</td><td>&gt;80%</td><td>—</td></tr>
-      <tr><td>L4</td><td>Complex tasks completed by parallel agents</td><td>3/3</td><td>—</td></tr>
-      <tr><td>L4</td><td>HITL approval acceptance rate</td><td>&gt;90%</td><td>—</td></tr>
-      <tr><td>L5</td><td>Fresh clone → running system</td><td>&lt;10 min</td><td>—</td></tr>
-      <tr><td>L5</td><td>CI/CD gates pass</td><td>100%</td><td>—</td></tr>
-    </tbody>
-  </table>
+<section class="block" id="tracker">
+  <div class="wrap">
+    <p class="sec-eyebrow">SEQ 03 · DAY TRACKER</p>
+    <h2>The full manifest</h2>
+    <table class="tbl">
+      <thead><tr><th class="mono">Day</th><th class="mono">Lvl</th><th>Deliverable</th><th class="mono">Status</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">01</td><td class="mono">0</td><td>Repo, architecture docs, README, running doc v1, ADR-0001, infra skeleton, CI</td><td class="st done">● SHIPPED</td></tr>
+        <tr><td class="mono">02</td><td class="mono">0</td><td>campaign-service (CRUD, Postgres, tests, OpenAPI)</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">03</td><td class="mono">0</td><td>ad-decision-service (targeting, freq capping, brand safety, pacing)</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">04</td><td class="mono">0</td><td>event-service + observability stack (Grafana dashboards, JSON logging lib)</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">05</td><td class="mono">0</td><td>traffic-simulator + failure injection · Level 0 quality gate</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">06</td><td class="mono">1</td><td>Document ingestion pipeline</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">07</td><td class="mono">1</td><td>Chunking + embedding strategies (comparison documented)</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">08</td><td class="mono">1</td><td>Hybrid retrieval + reranking</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">09</td><td class="mono">1</td><td>AST knowledge graph + visualization</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">10</td><td class="mono">1</td><td>MCP server + retrieval eval suite · Level 1 quality gate</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">11</td><td class="mono">2</td><td>Code-generation agent</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">12</td><td class="mono">2</td><td>Test-generation agent + mutation testing</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">13</td><td class="mono">2</td><td>PR pre-review agent (GitHub Actions)</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">14</td><td class="mono">2</td><td>Deployment-validation agent</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">15</td><td class="mono">2</td><td>E2E pipeline: ticket → code → test → PR → deploy · Level 2 gate</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">16</td><td class="mono">3</td><td>Log intelligence pipeline</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">17</td><td class="mono">3</td><td>Incident triage agent</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">18</td><td class="mono">3</td><td>RCA agent</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">19</td><td class="mono">3</td><td>Guided resolution + runbook generation</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">20</td><td class="mono">3</td><td>Self-healing loop E2E demo · Level 3 quality gate</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">21</td><td class="mono">4</td><td>Agent communication protocol</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">22</td><td class="mono">4</td><td>Parallel agent execution</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">23</td><td class="mono">4</td><td>Conflict resolution + escalation</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">24</td><td class="mono">4</td><td>Human-in-the-loop gates</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">25</td><td class="mono">4</td><td>Actor-Critic process-audit evals · Level 4 quality gate</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">26</td><td class="mono">5</td><td>AI-first dev environment (devcontainer, one-command setup)</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">27</td><td class="mono">5</td><td>CI/CD AI gates</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">28</td><td class="mono">5</td><td>Consolidated eval dashboard</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">29</td><td class="mono">5</td><td>Grand demo (feature E2E through the whole platform)</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">30</td><td class="mono">5</td><td>Launch: open-source release, outreach kickoff</td><td class="st plan">○ QUEUED</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="block" id="decisions">
+  <div class="wrap">
+    <p class="sec-eyebrow">SEQ 04 · DECISIONS</p>
+    <h2>Written down, or it didn't happen</h2>
+    <div class="card">
+      <h3>ADR-0001 — Docker Compose over Kubernetes</h3>
+      <p>Four services run by one developer on one machine. Compose gives one-command startup and reproducible demos; Kubernetes adds operational overhead while proving nothing relevant to AI foundation engineering. Choosing infrastructure proportionate to the problem is the signal.</p>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="evals">
+  <div class="wrap">
+    <p class="sec-eyebrow">SEQ 05 · EVAL SCOREBOARD</p>
+    <h2>Numbers or it's a demo</h2>
+    <p>Actuals publish as each level's quality gate runs. Empty cells are honest cells.</p>
+    <table class="tbl">
+      <thead><tr><th class="mono">Lvl</th><th>Metric</th><th class="mono">Target</th><th class="mono">Actual</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">L0</td><td>Services healthy under simulator load; failure injection works</td><td class="mono">100%</td><td class="mono">—</td></tr>
+        <tr><td class="mono">L1</td><td>Context relevance (50-query synthetic dataset)</td><td class="mono">&gt;85%</td><td class="mono">—</td></tr>
+        <tr><td class="mono">L1</td><td>Retrieval latency</td><td class="mono">&lt;500ms</td><td class="mono">—</td></tr>
+        <tr><td class="mono">L2</td><td>Generated code compiles / passes lint + types</td><td class="mono">100%</td><td class="mono">—</td></tr>
+        <tr><td class="mono">L2</td><td>Generated test pass rate; mutation score improvement</td><td class="mono">&gt;90%</td><td class="mono">—</td></tr>
+        <tr><td class="mono">L2</td><td>PR reviewer seeded-bug catch rate</td><td class="mono">published</td><td class="mono">—</td></tr>
+        <tr><td class="mono">L3</td><td>Synthetic incidents flagged</td><td class="mono">5/5</td><td class="mono">—</td></tr>
+        <tr><td class="mono">L3</td><td>RCA correct root cause</td><td class="mono">&gt;80%</td><td class="mono">—</td></tr>
+        <tr><td class="mono">L4</td><td>Complex tasks completed by parallel agents</td><td class="mono">3/3</td><td class="mono">—</td></tr>
+        <tr><td class="mono">L4</td><td>HITL approval acceptance rate</td><td class="mono">&gt;90%</td><td class="mono">—</td></tr>
+        <tr><td class="mono">L5</td><td>Fresh clone → running system</td><td class="mono">&lt;10 min</td><td class="mono">—</td></tr>
+        <tr><td class="mono">L5</td><td>CI/CD gates pass</td><td class="mono">100%</td><td class="mono">—</td></tr>
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <footer>
-  <p>Built in public. <strong>Day 1 of 30.</strong></p>
-  <p class="muted">ADS-NEXUS is an independent open-source project, not affiliated with or endorsed by Netflix.</p>
+  <div class="wrap">
+    <p><b>DAY 01 / 30</b> · BUILT IN PUBLIC</p>
+    <p>ADS-NEXUS is an independent open-source project, not affiliated with or endorsed by Netflix.</p>
+  </div>
 </footer>
 
 </body>
