@@ -1,0 +1,32 @@
+[project]
+name = "ads-nexus"
+version = "0.1.0"
+description = "AI-native engineering platform for ad-tech teams: context layer, dev & ops agents, orchestration, evals - operating on a mini Netflix-style ads substrate."
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pre-commit>=3.8",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ANN"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+# NOTE: add "substrate" and "nexus" to testpaths when those packages appear (Day 2+)
