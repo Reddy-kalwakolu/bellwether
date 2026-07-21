@@ -68,13 +68,18 @@ class InMemoryDecisionStore:
 
 
 class RedisClient(Protocol):
-    """The three Redis commands this service needs. Keeps the seam narrow."""
+    """The three Redis commands this service needs. Keeps the seam narrow.
 
-    def get(self, key: str) -> str | None: ...
+    Parameters are positional-only on purpose: redis-py calls them `name` and `time`,
+    an in-memory double would call them `key` and `seconds`, and the protocol should
+    not force either to rename.
+    """
 
-    def incrby(self, key: str, amount: int) -> int: ...
+    def get(self, key: str, /) -> str | bytes | None: ...
 
-    def expire(self, key: str, seconds: int) -> None: ...
+    def incrby(self, key: str, amount: int, /) -> object: ...
+
+    def expire(self, key: str, seconds: int, /) -> object: ...
 
 
 class RedisDecisionStore:
