@@ -7,16 +7,15 @@ exclusions, and creatives. ad-decision-service reads from here when selecting an
 from __future__ import annotations
 
 import logging
-import time
 import uuid
-from collections.abc import AsyncIterator, Callable, Coroutine
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -32,20 +31,10 @@ from substrate.campaign_service.schemas import (
     CreativeRead,
     ErrorResponse,
 )
-from substrate.shared.logging import configure_logging, log_context
+from substrate.shared.logging import configure_logging
+from substrate.shared.observability import install_request_observability
 
 logger = logging.getLogger("campaign_service.api")
-
-REQUESTS = Counter(
-    "http_requests_total",
-    "HTTP requests handled.",
-    ["service", "endpoint", "method", "status"],
-)
-LATENCY = Histogram(
-    "http_request_duration_seconds",
-    "HTTP request latency.",
-    ["service", "endpoint"],
-)
 
 ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     404: {"model": ErrorResponse, "description": "Campaign not found"}
@@ -69,30 +58,7 @@ app = FastAPI(
 )
 
 
-@app.middleware("http")
-async def observe_request(
-    request: Request,
-    call_next: Callable[[Request], Coroutine[Any, Any, Response]],
-) -> Response:
-    """Record latency and outcome for every request, in metrics and in logs."""
-    route: Any = request.scope.get("route")
-    endpoint: str = route.path if route is not None else request.url.path
-    started = time.perf_counter()
-    response = await call_next(request)
-    latency_s = time.perf_counter() - started
-
-    REQUESTS.labels(settings.service_name, endpoint, request.method, response.status_code).inc()
-    LATENCY.labels(settings.service_name, endpoint).observe(latency_s)
-    log_context(
-        logger,
-        "request handled",
-        service=settings.service_name,
-        endpoint=endpoint,
-        method=request.method,
-        status=response.status_code,
-        latency_ms=round(latency_s * 1000, 3),
-    )
-    return response
+install_request_observability(app, settings.service_name, logger)
 
 
 @app.exception_handler(HTTPException)

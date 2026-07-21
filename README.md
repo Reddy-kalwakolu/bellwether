@@ -61,11 +61,11 @@ flowchart TB
 
 ## Status
 
-**Day 1: Foundation** — Level 0 in progress.
+**Day 3** — Level 0 in progress.
 
 - [x] Day 1 — repo scaffolding, ADR-0001, infra skeleton, running doc v1, CI
-- [ ] Day 2 — campaign-service
-- [ ] Day 3 — ad-decision-service
+- [x] Day 2 — campaign-service
+- [x] Day 3 — ad-decision-service
 - [ ] Day 4 — event-service + observability
 - [ ] Day 5 — traffic-simulator + failure injection
 
@@ -80,6 +80,7 @@ docker compose up -d --build # start the stack
 | Service | URL |
 |---|---|
 | campaign-service API docs | http://localhost:8001/docs |
+| ad-decision-service API docs | http://localhost:8002/docs |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 |
 
