@@ -34,6 +34,14 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "ANN"]
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency injection is declared in argument defaults by design.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body"]
+
+[tool.ruff.lint.per-file-ignores]
+# log_context forwards arbitrary structured fields; typing them would defeat the point.
+"substrate/shared/logging.py" = ["ANN401"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true
