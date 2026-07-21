@@ -26,9 +26,7 @@ class CampaignClient:
         timeout_seconds: float,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
-        self._client = httpx.Client(
-            base_url=base_url, timeout=timeout_seconds, transport=transport
-        )
+        self._client = httpx.Client(base_url=base_url, timeout=timeout_seconds, transport=transport)
 
     def fetch_active_campaigns(self) -> list[Candidate]:
         """Fetch every campaign currently in flight, as decision candidates."""

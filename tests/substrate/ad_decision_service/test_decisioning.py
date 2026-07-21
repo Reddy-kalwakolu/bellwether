@@ -19,7 +19,7 @@ PRICE = 2_000
 CAMPAIGN_ID = "11111111-1111-1111-1111-111111111111"
 
 
-def campaign_payload(**overrides: Any) -> dict[str, Any]:
+def campaign_payload(**overrides: object) -> dict[str, Any]:
     """A campaign-service `CampaignRead` body, as the HTTP client returns it."""
     payload: dict[str, Any] = {
         "id": CAMPAIGN_ID,
@@ -52,7 +52,7 @@ def campaign_payload(**overrides: Any) -> dict[str, Any]:
     return payload
 
 
-def ad_request(**slot_overrides: Any) -> AdRequest:
+def ad_request(**slot_overrides: object) -> AdRequest:
     """An ad request that clears every rule against the default campaign."""
     slot: dict[str, Any] = {
         "slot_id": "slot-1",
