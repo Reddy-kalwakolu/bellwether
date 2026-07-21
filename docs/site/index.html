@@ -192,7 +192,7 @@
   <div class="bar-in">
     <span class="rec"><span class="rec-dot" aria-hidden="true"></span>REC</span>
     <span class="bar-title">BELLWETHER · BUILD LOG</span>
-    <span class="bar-day">DAY <b>02</b> / 30</span>
+    <span class="bar-day">DAY <b>03</b> / 30</span>
   </div>
 </div>
 
@@ -211,11 +211,11 @@
 
 <section class="pod" aria-label="30-day build timeline">
   <div class="wrap">
-    <div class="pod-head"><span>The 30-day pod</span><span>2 shipped · 28 queued</span></div>
+    <div class="pod-head"><span>The 30-day pod</span><span>3 shipped · 27 queued</span></div>
     <div class="pod-strip">
       <div class="seg shipped nohead" title="Day 1 — Repo, ADR-0001, infra skeleton, running doc v1, CI · shipped"></div>
-      <div class="seg shipped" title="Day 2 — campaign-service (CRUD, Postgres, tests, OpenAPI) · shipped"></div>
-      <div class="seg" title="Day 3 — ad-decision-service (targeting, freq capping, brand safety, pacing)"></div>
+      <div class="seg shipped nohead" title="Day 2 — campaign-service (CRUD, Postgres, tests, OpenAPI) · shipped"></div>
+      <div class="seg shipped" title="Day 3 — ad-decision-service (targeting, freq capping, brand safety, pacing) · shipped"></div>
       <div class="seg" title="Day 4 — event-service + observability stack"></div>
       <div class="seg" title="Day 5 — traffic-simulator + failure injection · Level 0 gate"></div>
       <div class="seg" title="Day 6 — document ingestion pipeline"></div>
@@ -344,6 +344,40 @@ erDiagram
         string asset_url
     }
     </pre>
+
+    <h3>Day 3 — the decision path</h3>
+    <p>One ad request in, one decision out. Every candidate campaign walks the same chain, and every rejection carries a <em>named reason</em> — which is what turns "fill rate dropped at 14:20" into an answerable question three levels from now.</p>
+    <pre class="mermaid">
+flowchart LR
+    REQ["POST /ad-request&lt;br/&gt;member + slot"] --> FETCH["active campaigns&lt;br/&gt;(campaign-service HTTP)"]
+    FETCH --> F1{"in flight?"}
+    F1 -->|no| X1["not_active /&lt;br/&gt;outside_flight_window"]
+    F1 -->|yes| F2{"targeting match?"}
+    F2 -->|no| X2["targeting_mismatch"]
+    F2 -->|yes| F3{"brand safe?"}
+    F3 -->|no| X3["brand_safety_excluded"]
+    F3 -->|yes| F4{"under frequency cap?"}
+    F4 -->|no| X4["frequency_capped"]
+    F4 -->|yes| F5{"within pacing allowance?"}
+    F5 -->|no| X5["pacing_throttled"]
+    F5 -->|yes| WIN["most daily budget remaining wins"]
+    WIN --> REC["record impression&lt;br/&gt;(Redis: freq + spend)"]
+    REC --> RES["AdDecision + full candidate trace"]
+    X1 --> RES
+    X2 --> RES
+    X3 --> RES
+    X4 --> RES
+    X5 --> RES
+    </pre>
+
+    <h3>Where the decision state lives</h3>
+    <pre class="mermaid">
+flowchart LR
+    ADS["ad-decision-service"] -->|"GET /campaigns?status=active"| CS["campaign-service"]
+    CS --> PG[("Postgres&lt;br/&gt;system of record&lt;br/&gt;campaigns · budgets · creatives")]
+    ADS -->|"freq: / spend: keys, 48h TTL"| RD[("Redis&lt;br/&gt;per-day decision state")]
+    ADS --> PROM["/metrics&lt;br/&gt;ad_decisions_total&lt;br/&gt;ad_candidates_filtered_total{reason}"]
+    </pre>
   </div>
 </section>
 
@@ -356,7 +390,7 @@ erDiagram
       <tbody>
         <tr><td class="mono">01</td><td class="mono">0</td><td>Repo, architecture docs, README, running doc v1, ADR-0001, infra skeleton, CI</td><td class="st done">● SHIPPED</td></tr>
         <tr><td class="mono">02</td><td class="mono">0</td><td>campaign-service (CRUD, Postgres, tests, OpenAPI)</td><td class="st done">● SHIPPED</td></tr>
-        <tr><td class="mono">03</td><td class="mono">0</td><td>ad-decision-service (targeting, freq capping, brand safety, pacing)</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">03</td><td class="mono">0</td><td>ad-decision-service (targeting, freq capping, brand safety, pacing)</td><td class="st done">● SHIPPED</td></tr>
         <tr><td class="mono">04</td><td class="mono">0</td><td>event-service + observability stack (Grafana dashboards, JSON logging lib)</td><td class="st plan">○ QUEUED</td></tr>
         <tr><td class="mono">05</td><td class="mono">0</td><td>traffic-simulator + failure injection · Level 0 quality gate</td><td class="st plan">○ QUEUED</td></tr>
         <tr><td class="mono">06</td><td class="mono">1</td><td>Document ingestion pipeline</td><td class="st plan">○ QUEUED</td></tr>
@@ -398,6 +432,10 @@ erDiagram
       <p><strong>bellwether</strong> <em>(noun)</em> — a leading indicator; the thing you watch to know where something is heading before the rest of the picture catches up. That is the job twice over: the first AI engineer on a team is a leading indicator of how that team will build a year from now, and the eval scoreboard is a leading indicator of whether the agents are actually making the work better.</p>
     </div>
     <div class="card">
+      <h3>ADR-0003 — Redis holds the decision state, Postgres holds the truth</h3>
+      <p>Frequency counters and daily pacing spend are written on every served impression, scoped per member, and worthless after midnight — a counter with a TTL, not a row. They live in Redis under day-scoped keys that expire themselves; campaign-service stays the system of record, read over its HTTP API rather than its tables. The trigger that flips this: Day 4's event-service, when impressions become durable and spend becomes billable.</p>
+    </div>
+    <div class="card">
       <h3>ADR-0002 — <code>create_all</code> over Alembic, for now</h3>
       <p>The schema has one writer and no data anyone depends on, and it will churn daily through Day 5. Migrations written against a schema that changes every day are noise, not safety. The trigger that flips this: the first second service that reads these tables.</p>
     </div>
@@ -435,7 +473,7 @@ erDiagram
 
 <footer>
   <div class="wrap">
-    <p><b>DAY 02 / 30</b> · BUILT IN PUBLIC</p>
+    <p><b>DAY 03 / 30</b> · BUILT IN PUBLIC</p>
     <p>BELLWETHER is an independent open-source project, not affiliated with or endorsed by Netflix.</p>
   </div>
 </footer>

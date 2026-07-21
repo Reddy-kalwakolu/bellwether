@@ -1677,3 +1677,14 @@ Then: `docker compose ps` — campaign-service and ad-decision-service both heal
 git add docs
 git commit -m "docs: ADR-0003, day-03 devlog, running doc updated for ad-decision-service"
 ```
+
+---
+
+## Execution notes (what the plan missed)
+
+Recorded during execution, so the next plan does not repeat these:
+
+1. **Prometheus registry collision.** The plan had ad-decision-service define `http_requests_total` and `http_request_duration_seconds` itself, copying campaign-service. Prometheus keeps one global registry per process, so the second definition raises `Duplicated timeseries` as soon as both services are imported — which the test suite does. Fixed by extracting `substrate/shared/observability.py` with the metrics defined once and an `install_request_observability(app, service_name, logger)` helper; campaign-service was migrated onto it.
+2. **Duplicate test module basenames.** Two services each owning `tests/.../test_api.py` and `conftest.py` collides in pytest's default import mode *and* in mypy. Fixed by adding `__init__.py` to every directory under `tests/`.
+3. **`RedisClient` protocol was too strict.** redis-py names its parameters `name`/`time` and returns `bool` from `expire`, so a protocol declaring `key: str` / `-> None` does not match. Fixed by making the protocol's parameters positional-only and widening the return types.
+4. `build_client()` takes no arguments — the `transport` seam belongs to `CampaignClient.__init__` only.
