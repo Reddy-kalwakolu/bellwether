@@ -57,6 +57,25 @@ services:
       timeout: 3s
       retries: 5
 
+  ad-decision-service:
+    build:
+      context: .
+      dockerfile: substrate/ad_decision_service/Dockerfile
+    environment:
+      AD_DECISION_CAMPAIGN_SERVICE_URL: http://campaign-service:8000
+      AD_DECISION_REDIS_URL: redis://redis:6379/0
+    ports: ["8002:8000"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      campaign-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
 volumes:
   pgdata:
 

@@ -8,5 +8,8 @@ scrape_configs:
   - job_name: campaign-service
     static_configs:
       - targets: ["campaign-service:8000"]
+  - job_name: ad-decision-service
+    static_configs:
+      - targets: ["ad-decision-service:8000"]
 
-# Remaining substrate services register here as they are built (Day 3+).
+# Remaining substrate services register here as they are built (Day 4+).
