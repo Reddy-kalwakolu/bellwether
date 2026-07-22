@@ -197,8 +197,10 @@ def test_gemini_batches_at_one_hundred() -> None:
 
 def test_a_gemini_error_names_the_engine() -> None:
     post = FakePost(status=429, body={"error": {"message": "quota"}})
+    # The sleep must be injected: a 429 is retried with a 30-second backoff, so the
+    # default clock would park this single test for three real minutes.
     with pytest.raises(EmbeddingError, match="gemini returned 429"):
-        GeminiEmbedder(api_key="k", post=post).embed(["x"])
+        GeminiEmbedder(api_key="k", post=post, sleep=lambda _: None).embed(["x"])
 
 
 # --- potion --------------------------------------------------------------------
@@ -228,3 +230,62 @@ def test_cost_is_linear_in_tokens() -> None:
     assert cost_for(1_000_000, 0.06) == 0.06
     assert cost_for(0, 0.15) == 0.0
     assert math.isclose(cost_for(140_000, 0.06), 0.0084)
+
+
+# --- rate limits ---------------------------------------------------------------
+
+
+class FlakyPost(FakePost):
+    """Fails with `status` for the first `failures` calls, then succeeds."""
+
+    def __init__(self, failures: int, status: int, body: dict[str, Any]) -> None:
+        super().__init__(status=200, body=body)
+        self.failures = failures
+        self.failing_status = status
+
+    def __call__(
+        self, url: str, payload: dict[str, Any], headers: dict[str, str]
+    ) -> tuple[int, dict[str, Any]]:
+        self.calls.append((url, payload, headers))
+        if len(self.calls) <= self.failures:
+            return self.failing_status, {"error": {"message": "rate limited"}}
+        return 200, self.body
+
+
+def test_a_rate_limit_is_waited_out_rather_than_abandoned() -> None:
+    slept: list[float] = []
+    post = FlakyPost(failures=2, status=429, body=_gemini_body(1))
+    GeminiEmbedder(api_key="k", post=post, sleep=slept.append).embed(["x"])
+
+    # Gemini's free tier is 100 requests/minute and one batch is 100 requests, so
+    # a full corpus hits the wall immediately. Giving up would silently drop the
+    # best engine out of the comparison.
+    assert len(slept) == 2
+    assert all(pause >= 30.0 for pause in slept)
+    assert len(post.calls) == 3
+
+
+def test_a_server_error_backs_off_more_gently_than_a_rate_limit() -> None:
+    slept: list[float] = []
+    post = FlakyPost(failures=1, status=503, body=_voyage_body(1))
+    VoyageEmbedder(api_key="k", post=post, sleep=slept.append).embed(["x"])
+    assert slept == [2.0]
+
+
+def test_a_bad_key_is_not_retried() -> None:
+    slept: list[float] = []
+    post = FakePost(status=401, body={"error": {"message": "invalid key"}})
+    with pytest.raises(EmbeddingError, match="401"):
+        VoyageEmbedder(api_key="k", post=post, sleep=slept.append).embed(["x"])
+
+    # Retrying a 401 six times is just a slower way to fail.
+    assert slept == []
+    assert len(post.calls) == 1
+
+
+def test_retries_are_bounded_and_the_failure_still_surfaces() -> None:
+    slept: list[float] = []
+    post = FlakyPost(failures=99, status=429, body={})
+    with pytest.raises(EmbeddingError, match="gemini returned 429"):
+        GeminiEmbedder(api_key="k", post=post, sleep=slept.append).embed(["x"])
+    assert len(post.calls) == 7
