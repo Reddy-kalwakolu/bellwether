@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BELLWETHER — The Build</title>
-<meta name="description" content="A thirty-day AI-native platform build, explained as it happens: the method, every tool and why it won, the architecture, every decision, and each bug reality found. Extended every build day.">
+<title>BELLWETHER — Building an AI platform that writes, reviews and operates code</title>
+<meta name="description" content="I am building an AI platform whose agents write code, review pull requests and diagnose outages — grounded in my team's own knowledge, with a published score on every capability. Thirty days, explained as it happens.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -251,9 +251,10 @@
 <header class="hero">
   <div class="wrap">
     <p class="eyebrow"><span class="tick">&#9656;</span> A LIVING ACCOUNT · EXTENDED EVERY BUILD DAY</p>
-    <h1 class="mark">How you build a<br>platform an AI can<br><em>actually operate</em></h1>
-    <p class="lede">A thirty-day build, explained as it happens. This page grows on every build day &mdash; the method used, every tool and why it beat the alternative, the architecture at each stage, every decision and its expiry condition, and each time reality pushed back.</p>
-    <p class="lede"><strong>It currently covers Day 0 through Day 07.</strong> Nothing is written with hindsight: the mistakes are recorded on the day they were made, by the person who made them, and they stay on the page afterwards.</p>
+    <h1 class="mark">I'm building an AI<br>platform that writes code,<br>reviews it, and <em>runs it</em></h1>
+    <p class="lede"><strong>BELLWETHER is an AI layer for an engineering team.</strong> Agents that generate code and tests, review pull requests against written standards, and diagnose production incidents from real logs and metrics &mdash; all grounded in this team's own decisions rather than generic training data, and every one of them carrying a published score.</p>
+    <p class="lede">I'm building it in thirty days and writing it down as I go: the method I follow each day, every tool and why I picked it over the alternative, the architecture at each stage, every decision and the condition that would reverse it, and each time reality proved me wrong.</p>
+    <p class="lede"><strong>This page currently covers Day 0 through Day 07.</strong> I write nothing with hindsight &mdash; I record the mistakes on the day I make them, and I leave them on the page.</p>
 
     <div class="progress">
       <div class="progress-head"><span>The thirty-day arc</span><span>Day 07 &middot; Level 1 in progress</span></div>
@@ -335,15 +336,15 @@
       <p class="day-eyebrow">Day 00 · The problem</p>
       <h3 class="hd">A job posting, and a tension worth taking seriously</h3>
 
-      <p>It starts with a Netflix job posting &mdash; requisition AJRT30201, Staff AI Engineer on the Ads Platform team. Strip out the boilerplate and it describes one specific, current problem:</p>
+      <p>I started with a Netflix job posting &mdash; requisition AJRT30201, Staff AI Engineer on the Ads Platform team. Strip out the boilerplate and it describes one specific, current problem:</p>
 
       <p><strong>Engineering teams can now produce code far faster than they can verify it.</strong></p>
 
-      <p>That sentence is easy to nod along to and easy to underestimate. It is worth seeing what it actually means.</p>
+      <p>That sentence is easy to nod along to and easy to underestimate, so let me show you what it actually means.</p>
 
       <h4 class="sub">What "plausible but wrong" actually looks like</h4>
 
-      <p>Here is a function from this project's own domain. An AI could write it in a second, a reviewer could approve it in five, and it is wrong.</p>
+      <p>Here is a function from my own domain code. An AI could write it in a second, I could approve it in five, and it is wrong.</p>
 
       <pre class="code"><span class="c"># Has this campaign spent its daily budget?</span>
 <span class="k">def</span> within_budget(campaign, spent_micros):
@@ -429,7 +430,7 @@ within_budget(...)  &#8594; <span class="g">True</span>     <span class="c"># be
       <p>That number can go down when the code changes. That is precisely why it is worth having.</p>
 
       <div class="decision">
-        <span class="tag">The bet this whole project makes</span>
+        <span class="tag">The bet I'm making</span>
         <h5>Every capability ships with a number</h5>
         <p>Not <em>"here is an agent that reviews pull requests."</em></p>
         <p>Instead: <em>"here is an agent that caught 7 of 10 deliberately planted bugs, here is the evaluation that measured it, here is the run where it only scored 4, and here is what changed after."</em></p>
@@ -450,7 +451,7 @@ within_budget(...)  &#8594; <span class="g">True</span>     <span class="c"># be
 
       <p><strong>An agent tested against a fake failure can only ever find the fake.</strong> The evaluation measures the fixture, not the agent.</p>
 
-      <p>Compare what happens on Day 5 here. A simulator sends genuine <code>PATCH</code> requests rewriting every campaign's targeting to a country with no viewers. The decision service reads that configuration and correctly declines to serve. Fill rate drops from <strong>43% to 2%</strong>.</p>
+      <p>Compare what I do on Day 5. My simulator sends genuine <code>PATCH</code> requests rewriting every campaign's targeting to a country with no viewers. The decision service reads that configuration and correctly declines to serve. Fill rate drops from <strong>43% to 2%</strong>.</p>
 
       <p>Every part of that is real. The cause is a row in a table an agent can query. The symptom is a metric an agent can chart. The fix &mdash; restore the previous targeting &mdash; is a real operation with real consequences. <em>That</em> is something worth evaluating an agent against.</p>
 
@@ -479,7 +480,7 @@ flowchart TB
 
       <h4 class="sub">Why an ads platform specifically</h4>
 
-      <p>The substrate could have been anything. Ad serving was chosen for four reasons, none of them "it sounded impressive":</p>
+      <p>The substrate could have been anything. I chose ad serving for four reasons, none of them "it sounded impressive":</p>
 
       <ul>
         <li><strong>It is the target team's actual domain.</strong> Using the posting's own vocabulary &mdash; targeting, frequency capping, brand safety, pacing &mdash; in code, logs and docs means every conversation lands in the right register.</li>
@@ -504,9 +505,9 @@ flowchart TB
       </table>
       </div>
 
-      <p>Every target was written <strong>before</strong> its level was built. That ordering matters more than it looks: a target invented after seeing the result is not a target, it is a description.</p>
+      <p>I wrote every target <strong>before</strong> building its level. That ordering matters more than it looks: a target I invent after seeing the result is not a target, it is a description.</p>
 
-      <p><strong>Days 1&ndash;5 build the substrate. Day 6 onward is the AI layer.</strong></p>
+      <p><strong>Days 1&ndash;5 I build the substrate. From Day 6 I start on the AI layer itself.</strong></p>
     </div>
   </section>
 
@@ -516,7 +517,7 @@ flowchart TB
       <p class="day-eyebrow">The method</p>
       <h3 class="hd">How a single day actually runs</h3>
 
-      <p>The same loop runs every day. None of it is ceremony &mdash; each step exists because skipping it caused a specific, traceable problem, and most of those problems are named later on this page.</p>
+      <p>This is the loop I run every day. None of it is ceremony &mdash; every step is there because skipping it cost me something specific, and most of those costs are named later on this page.</p>
 
       <pre class="mermaid">
 flowchart LR
@@ -531,7 +532,7 @@ flowchart LR
 
       <h4 class="sub">Step 1 &middot; The plan is a file in the repository</h4>
 
-      <p>Before any code, the day gets a written plan committed to <code>docs/superpowers/plans/</code>. Not a to-do list. A document naming every file that will exist, the exact function signatures, and the tests that will be written first.</p>
+      <p>Before I write any code, I commit a written plan to <code>docs/superpowers/plans/</code>. Not a to-do list. A document naming every file that will exist, the exact function signatures, and the tests I will write first.</p>
 
       <p>Here is the shape of a real task from the Day 7 plan:</p>
 
@@ -549,13 +550,13 @@ flowchart LR
 
 <span class="c">- [ ] Write failing tests &#8594; run &#8594; implement &#8594; run &#8594; commit</span></pre>
 
-      <p>Two reasons this exists. It forces the design to be thought through while changing it is still free &mdash; renaming a function in a plan costs nothing, renaming it across nine files costs an hour. And it means a fresh session, or a different person, can pick the work up without re-deriving anything.</p>
+      <p>Two reasons I do this. It forces me to think the design through while changing it is still free &mdash; renaming a function in a plan costs nothing, renaming it across nine files costs me an hour. And it means a fresh session, or someone else entirely, can pick the work up without re-deriving anything I already worked out.</p>
 
       <p>The plans are also, deliberately, <em>part of the corpus</em>. From Day 6 onward the AI layer can read how each day was planned, including what the plan got wrong.</p>
 
       <h4 class="sub">Step 2 &middot; Test first &mdash; and watch it fail</h4>
 
-      <p>Every task follows five steps. Here is a real one, start to finish.</p>
+      <p>Every task I write follows five steps. Here is a real one, start to finish.</p>
 
       <p><strong>2a. Write the test before the code exists.</strong> This is from Day 4's event-service &mdash; the test that pins down idempotent counting:</p>
 
@@ -578,7 +579,7 @@ flowchart LR
 E   ModuleNotFoundError: No module named <span class="g">'substrate.event_service.main'</span>
 <span class="a">1 error during collection</span></pre>
 
-      <p>This is the step almost everyone skips, and it is the one that matters most. Running the test <em>before</em> the code exists proves the test is capable of failing.</p>
+      <p>This is the step I am most tempted to skip, and it is the one that matters most. Running the test <em>before</em> the code exists proves the test is capable of failing at all.</p>
 
       <p>A test that has never been seen failing might be asserting nothing at all &mdash; a typo in a fixture name, an assertion inside a branch that never runs, a comparison that is always true. <strong>A test that always passes is worse than no test</strong>, because it produces confidence without evidence, and it will still be passing years later while the behaviour it claims to protect has quietly rotted.</p>
 
@@ -611,7 +612,7 @@ E   ModuleNotFoundError: No module named <span class="g">'substrate.event_servic
       </table>
       </div>
 
-      <p>They are run as four separate commands on four separate lines. This sounds pedantic until you see what happens otherwise:</p>
+      <p>I run them as four separate commands on four separate lines. That sounds pedantic until you see what happened when I did not:</p>
 
       <pre class="code"><span class="c"># WRONG &#8212; reports success even when mypy fails.</span>
 <span class="c"># In a pipeline the surviving exit code is tail's, and tail always succeeds.</span>
@@ -627,7 +628,7 @@ uv run pytest</pre>
 
       <h4 class="sub">Step 4 &middot; The tests must pass with everything switched off</h4>
 
-      <p>A hard rule: <strong>the entire suite passes with Docker stopped and no API keys set.</strong> 289 tests, about six seconds.</p>
+      <p>A rule I hold myself to: <strong>the entire suite passes with Docker stopped and no API keys set.</strong> 289 tests, about six seconds.</p>
 
       <p>This is enforced by design rather than willpower. Business logic never reaches out for what it needs &mdash; it is handed it. Databases, HTTP clients, clocks and random number generators all arrive as arguments:</p>
 
@@ -642,13 +643,13 @@ uv run pytest</pre>
     result = decide(request, [campaign_capped_at(3)], store, now=FIXED_TIME)
     <span class="k">assert</span> result.no_fill_reason == <span class="g">"frequency_capped"</span></pre>
 
-      <p>Two payoffs. Speed &mdash; a six-second feedback loop instead of a two-minute one, which changes how often you are willing to run it. And honesty &mdash; a test that needs a running database is partly testing the database, and will fail for reasons that have nothing to do with your code.</p>
+      <p>Two payoffs. Speed &mdash; a six-second feedback loop instead of a two-minute one, which changes how often I am willing to run it. And honesty &mdash; a test that needs a running database is partly testing the database, and will fail for reasons that have nothing to do with the code I just wrote.</p>
 
       <div class="found">
         <span class="tag">The limit of this rule &#8212; and it is a real one</span>
         <h5>Fast tests can all agree with each other and all be wrong</h5>
-        <p>On Day 7 a stand-in for the vector database faithfully reproduced an <em>incorrect</em> mental model of how the real one behaves. Every test passed. The real database was silently deleting data on every write.</p>
-        <p>Substitutes verify <strong>your understanding</strong> of a system. They cannot verify the system. Anything that talks to real infrastructure needs at least one genuine round-trip before the design is trusted &mdash; which is exactly how that bug was eventually caught.</p>
+        <p>On Day 7 my stand-in for the vector database faithfully reproduced my own <em>incorrect</em> mental model of how the real one behaves. Every test passed. The real database was silently deleting my data on every write.</p>
+        <p>Substitutes verify <strong>my understanding</strong> of a system. They cannot verify the system. Anything that talks to real infrastructure needs at least one genuine round-trip before I trust the design &mdash; which is exactly how I eventually caught it.</p>
       </div>
 
       <h4 class="sub">Step 5 &middot; Decisions get written down with an expiry condition</h4>
@@ -676,7 +677,7 @@ uv run pytest</pre>
               <span class="a">Day 4's event-service, when impressions become durable
               and spend becomes billable.</span></pre>
 
-      <p>The trigger is the part that makes this worth doing. Without it a decision hardens into folklore &mdash; <em>"we don't do that here"</em> &mdash; and nobody remembers whether the original reason still holds. With it, the decision carries its own review date.</p>
+      <p>The trigger is the part that makes this worth doing. Without it my decision hardens into folklore &mdash; <em>"we don't do that here"</em> &mdash; and nobody, including me, remembers whether the original reason still holds. With it, the decision carries its own review date.</p>
 
       <p><strong>And it fired.</strong> One day later, event-service made impressions durable. The trigger had named that exact event in advance, so the question was already on the table rather than being noticed six months later. The answer turned out to be <em>narrow it</em> rather than <em>reverse it</em>:</p>
 
@@ -687,11 +688,11 @@ Redis keeps only the hot counters the serving path reads.
 <span class="a">They now disagree by design &#8212; and the gap between them is
 "reporting loss", which became a panel on the dashboard.</span></pre>
 
-      <p>A decision that could be revisited on schedule turned into a feature. That only happened because someone wrote down, a day in advance, the condition under which they would think about it again.</p>
+      <p>A decision I could revisit on schedule turned into a feature. That only happened because I wrote down, a day in advance, the condition under which I would think about it again.</p>
 
       <h4 class="sub">Step 6 &middot; Commits say what changed and why</h4>
 
-      <p>Every commit uses a conventional prefix, imperative mood, and must leave the repository green &mdash; tests, lint and types all passing.</p>
+      <p>Every commit I make uses a conventional prefix and imperative mood, and has to leave the repository green &mdash; tests, lint and types all passing.</p>
 
       <div class="tbl-scroll">
       <table class="tbl">
@@ -714,13 +715,13 @@ The previous commit passed its gates through a pipe, so mypy's
 non-zero exit was swallowed by tail and nine type errors went in
 green. Day-04 execution note 6, committed by the person who wrote it.</pre>
 
-      <p>Writing that down costs thirty seconds and makes the mistake findable forever. Hiding it costs nothing today and everything the third time it happens.</p>
+      <p>Writing that down cost me thirty seconds and makes my mistake findable forever. Hiding it would have cost nothing today and everything the third time I do it.</p>
 
       <h4 class="sub">Step 7 &middot; Reproduce the CI command exactly, before pushing</h4>
 
       <p>Running a <em>superset</em> of what CI runs is not the same as running what CI runs, and the difference hides an entire class of failure.</p>
 
-      <p>Day 7 made this concrete. The local machine had an optional AI dependency installed; the build server would not. So before pushing, the environment was deliberately reduced to match:</p>
+      <p>Day 7 made this concrete. My machine had an optional AI dependency installed; the build server would not. So before pushing, I deliberately stripped my environment back to match:</p>
 
       <pre class="code"><span class="c"># Strip the optional group so the venv matches the build server exactly</span>
 $ uv sync --group dev
@@ -733,7 +734,7 @@ $ uv run ruff format --check .                           <span class="g">105 fil
 $ uv run mypy tests substrate platform bellwether        <span class="g">no issues in 105 files</span>
 $ uv run pytest                                          <span class="g">289 passed</span></pre>
 
-      <p>The test count went <em>up</em> by one without the optional package &mdash; a test that skips when the library is present and runs when it is absent. Both environments genuinely covered, and that would have been invisible without reproducing the real one.</p>
+      <p>The test count went <em>up</em> by one without the optional package &mdash; a test that skips when the library is present and runs when it is absent. Both environments genuinely covered, and I would never have seen it without reproducing the real one.</p>
 
       <div class="aside">
         <span class="tag">Where this rule came from</span>
@@ -743,7 +744,7 @@ $ uv run pytest                                          <span class="g">289 pas
 
       <h4 class="sub">Step 8 &middot; The day ends by recording what the plan got wrong</h4>
 
-      <p>Every plan ends with a section titled <strong>"Execution notes &mdash; what the plan missed."</strong> Written after the work, listing everything reality disagreed about. Not a retrospective anyone schedules &mdash; a numbered list, in the plan file, committed.</p>
+      <p>Every plan I write ends with a section titled <strong>"Execution notes &mdash; what the plan missed."</strong> I write it after the work, listing everything reality disagreed with me about. Not a retrospective anyone schedules &mdash; a numbered list, in the plan file, committed.</p>
 
       <p>A real one, from Day 7:</p>
 
@@ -756,7 +757,7 @@ $ uv run pytest                                          <span class="g">289 pas
    <span class="a">&#8594; Any plan that fakes a datastore must include one live
      round-trip before the design is trusted.</span></pre>
 
-      <p>The next day's plan is written with those notes open. This is the single highest-leverage habit in the whole process, because <strong>the same mistakes genuinely do recur in disguise</strong>:</p>
+      <p>I write the next day's plan with those notes open. This is the single highest-leverage habit I have, because <strong>I genuinely do repeat the same mistake in disguise</strong>:</p>
 
       <div class="tbl-scroll">
       <table class="tbl">
@@ -772,7 +773,7 @@ $ uv run pytest                                          <span class="g">289 pas
 
       <h4 class="sub">Step 9 &middot; The definition of done, every day</h4>
 
-      <p>A day is not finished when the code works. It is finished when all of this is true:</p>
+      <p>My day is not finished when the code works. It is finished when all of this is true:</p>
 
       <ul>
         <li>Every task in the plan is implemented, test-first, and committed separately</li>
@@ -784,7 +785,7 @@ $ uv run pytest                                          <span class="g">289 pas
         <li>The execution notes are written, honestly, including the embarrassing ones</li>
       </ul>
 
-      <p>That last clause is doing real work. The mistakes on this page &mdash; the piped gate, the destroyed vectors, the gate that measured itself &mdash; are all self-reported. A build log that only contains successes is a marketing document, and nobody learns anything from it, least of all the person who wrote it.</p>
+      <p>That last clause is doing real work. Every mistake on this page &mdash; the piped gate, the destroyed vectors, the gate that measured itself &mdash; I reported on myself. A build log that only contains successes is a marketing document, and nobody learns anything from it, least of all me.</p>
     </div>
   </section>
 
@@ -1540,7 +1541,7 @@ flowchart TB
 
       <h4 class="sub">The pattern worth noticing</h4>
 
-      <p>Read the eight days back to back and the same shape repeats. A decision gets made and written down <em>with the condition that would reverse it</em>. Then reality tests it &mdash; and in every single case, running the real thing found something the plan had not:</p>
+      <p>Reading my own eight days back to back, the same shape repeats. I make a decision and write it down <em>with the condition that would reverse it</em>. Then reality tests it &mdash; and every single time, running the real thing found something my plan had not:</p>
 
       <ul>
         <li>A metric collision that only appeared when two services loaded together</li>
@@ -1551,9 +1552,9 @@ flowchart TB
         <li>A database that quietly deleted data while every test agreed it was fine</li>
       </ul>
 
-      <p>None of these were found by careful thinking. Every one was found by running the real thing under real conditions and looking hard at what came back.</p>
+      <p>I found none of these by thinking carefully. I found every one of them by running the real thing under real conditions and looking hard at what came back.</p>
 
-      <p>Which is, in the end, the entire argument of the project. <strong>An AI that writes code quickly is only useful if something can prove the code is right.</strong> That proof cannot come from a fixture, a mock, or a demo that worked once on camera. It has to come from the real system, misbehaving in real ways, measured by numbers that get published whether they flatter or not.</p>
+      <p>Which is, in the end, the whole argument I'm making. <strong>An AI that writes code quickly is only useful if something can prove the code is right.</strong> That proof cannot come from a fixture, a mock, or a demo that worked once on camera. It has to come from the real system, misbehaving in real ways, measured by numbers I publish whether they flatter me or not.</p>
 
       <p><strong>Twenty-three days remain, and this page grows with them.</strong> Level 1 finishes with hybrid retrieval, a knowledge graph built from the code's own structure, and an MCP server that lets any AI client query this project's knowledge directly. Then the agents arrive &mdash; and every one of them gets a number next to it.</p>
     </div>
