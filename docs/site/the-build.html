@@ -567,22 +567,28 @@ flowchart TB
         ADS["ad-decision-service&lt;br/&gt;6-filter serving path"]
         CS["campaign-service&lt;br/&gt;campaigns, budgets, targeting"]
         EV["event-service&lt;br/&gt;impressions, clicks, spend"]
+        RED[("Redis&lt;br/&gt;freq caps · pacing spend&lt;br/&gt;(hot, expires nightly)")]
+        PG[("Postgres&lt;br/&gt;system of record")]
         OBS["Prometheus + Grafana&lt;br/&gt;metrics, dashboards, JSON logs"]
-        SIM ==>|"ad request"| ADS
-        ADS -->|"reads config"| CS
-        ADS ==>|"delivery"| EV
+        SIM ==>|"① ad request"| ADS
+        ADS -->|"reads active campaigns"| CS
+        ADS <-->|"caps + spend"| RED
+        ADS ==>|"② returns the ad"| SIM
+        SIM ==>|"③ reports impression / click"| EV
+        CS --> PG
+        EV --> PG
         ADS -.-> OBS
-        EV -.-> OBS
         CS -.-> OBS
+        EV -.-> OBS
     end
 
-    OUT1(["① source, docs,&lt;br/&gt;API contracts, ADRs"])
-    OUT2(["② logs, metrics,&lt;br/&gt;dashboards"])
-    OUT3(["③ real incidents&lt;br/&gt;with a cause in a table"])
+    STR1(["source, docs,&lt;br/&gt;API contracts, ADRs"])
+    STR2(["logs, metrics,&lt;br/&gt;dashboards"])
+    STR3(["real incidents&lt;br/&gt;with a cause in a table"])
 
-    CS --> OUT1
-    OBS --> OUT2
-    SIM --> OUT3
+    SUB --> STR1
+    OBS --> STR2
+    SIM --> STR3
 
     subgraph BW["&#160;BELLWETHER &#8212; the AI layer, built Day 6 onward&#160;"]
         direction TB
@@ -596,9 +602,9 @@ flowchart TB
         ORCH -.-> OPS
     end
 
-    OUT1 ==>|"ingested, chunked, embedded"| CTX
-    OUT2 ==>|"parsed, correlated"| OPS
-    OUT3 ==>|"the thing to diagnose"| OPS
+    STR1 ==>|"ingested, chunked, embedded"| CTX
+    STR2 ==>|"parsed, correlated"| OPS
+    STR3 ==>|"the thing to diagnose"| OPS
 
     EVAL{{"Eval harness&lt;br/&gt;a published score on every capability"}}
     DEV -.-> EVAL
@@ -606,16 +612,18 @@ flowchart TB
     CTX -.-> EVAL
 
     classDef sub fill:#241416,stroke:#b8321f,stroke-width:1px,color:#f3d9d6;
+    classDef store fill:#1a1116,stroke:#8f5a63,stroke-width:1px,color:#e6d2d6;
     classDef ai fill:#12211a,stroke:#2f6f4f,stroke-width:1px,color:#d6ece0;
     classDef stream fill:#1c1c24,stroke:#6b6b78,stroke-width:1px,color:#eaeaef;
     classDef evalcls fill:#241f14,stroke:#e8a33d,stroke-width:1px,color:#f0d9ac;
     class SIM,ADS,CS,EV,OBS sub;
+    class RED,PG store;
     class CTX,DEV,OPS,ORCH ai;
-    class OUT1,OUT2,OUT3 stream;
+    class STR1,STR2,STR3 stream;
     class EVAL evalcls;
         </pre>
         <figcaption class="figure-cap">
-          <strong>Read it top to bottom.</strong> The substrate runs a real ad-request path, and falls out into three streams. Stream ① becomes the context layer that grounds every agent (Days 6&#8211;10). Stream ② is what the ops agents read during an incident (Days 16&#8211;20). Stream ③ is the incident itself &mdash; a genuinely broken configuration, not a fixture. The eval harness scores every capability and publishes the number, flattering or not.
+          <strong>Follow the numbers through the substrate.</strong> The simulator asks the decision service for an ad ①; the decision service reads campaigns from campaign-service and checks frequency caps and pacing spend in Redis, then returns the ad ②; and <em>the simulator</em> &mdash; not the decision service &mdash; reports the resulting impression to event-service ③, carrying the decision's request-id so the two tie together. That whole system then falls out into three streams: its <strong>source and docs</strong> become the context layer (Days 6&#8211;10), its <strong>logs and metrics</strong> are what the ops agents read (Days 16&#8211;20), and its <strong>injected incidents</strong> are the thing to diagnose &mdash; a genuinely broken configuration, not a fixture. The eval harness scores every capability and publishes the number, flattering or not.
         </figcaption>
       </figure>
 
