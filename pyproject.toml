@@ -48,6 +48,10 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "f
 [tool.mypy]
 python_version = "3.11"
 strict = true
+# `platform/` is on the path but is not a package (the name shadows a stdlib
+# module), so mypy needs telling where level0_gate lives — pytest's pythonpath
+# is not visible to it.
+mypy_path = "platform"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
