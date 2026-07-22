@@ -169,6 +169,32 @@
   li { margin-bottom: .5rem; }
 
   pre.mermaid { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1.2rem; overflow-x: auto; margin: 1.4rem 0; }
+
+  /* ---- a diagram that earns a frame: eyebrow, generous panel, caption ---- */
+  .figure {
+    margin: 1.8rem 0; border: 1px solid var(--line); border-radius: 12px;
+    background: linear-gradient(180deg, var(--panel) 0%, var(--ink) 100%);
+    overflow: hidden;
+  }
+  .figure-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+    flex-wrap: wrap; padding: .9rem 1.2rem; border-bottom: 1px solid var(--line);
+    font-family: var(--font-mono); font-size: .64rem; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--dim);
+  }
+  .figure-head b { color: var(--text); font-weight: 600; letter-spacing: .1em; }
+  .figure-head .key { display: flex; gap: 1.1rem; flex-wrap: wrap; }
+  .figure-head .key span { display: inline-flex; align-items: center; gap: .4rem; }
+  .figure-head .key i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  .figure-head .k-sub { background: #b8321f; }
+  .figure-head .k-ai  { background: #2f6f4f; }
+  .figure-head .k-eval { background: var(--found); }
+  .figure > pre.mermaid { margin: 0; border: 0; border-radius: 0; background: transparent; padding: 1.4rem 1.2rem; }
+  .figure-cap {
+    padding: .85rem 1.2rem; border-top: 1px solid var(--line);
+    font-size: .9rem; color: var(--dim);
+  }
+  .figure-cap strong { color: var(--text); }
   pre.code {
     background: var(--panel-2); border: 1px solid var(--line); border-left: 3px solid var(--line);
     border-radius: 8px; padding: 1rem 1.15rem; overflow-x: auto; margin: 1.2rem 0;
@@ -522,26 +548,76 @@ within_budget(...)  &#8594; <span class="g">True</span>     <span class="c"># be
 
       <h4 class="sub">So the project is two systems, and the unglamorous one goes first</h4>
 
-      <pre class="mermaid">
+      <p>The important thing this diagram shows is not the boxes &mdash; it is that <strong>the substrate emits three different kinds of real output, and each one feeds a different part of the AI layer.</strong> That mapping is the whole reason the platform gets built first.</p>
+
+      <figure class="figure">
+        <div class="figure-head">
+          <b>System architecture &middot; how the two halves connect</b>
+          <span class="key">
+            <span><i class="k-sub"></i>substrate</span>
+            <span><i class="k-ai"></i>AI layer</span>
+            <span><i class="k-eval"></i>evaluation</span>
+          </span>
+        </div>
+        <pre class="mermaid">
 flowchart TB
-    subgraph BW["BELLWETHER &#8212; the AI layer (the actual point)"]
-        CTX["Context layer&lt;br/&gt;knows the codebase and decisions"]
-        DEV["Dev agents&lt;br/&gt;write code, write tests, review PRs"]
-        OPS["Ops agents&lt;br/&gt;triage, correlate, find root causes"]
-        ORCH["Orchestrator&lt;br/&gt;coordinates them, escalates to humans"]
-        EVAL["Eval harness&lt;br/&gt;scores all of it, publicly"]
+    subgraph SUB["&#160;SUBSTRATE &#8212; a small ads platform, built Days 1&#8211;5&#160;"]
+        direction LR
+        SIM["traffic-simulator&lt;br/&gt;seeded load + injectable failures"]
+        ADS["ad-decision-service&lt;br/&gt;6-filter serving path"]
+        CS["campaign-service&lt;br/&gt;campaigns, budgets, targeting"]
+        EV["event-service&lt;br/&gt;impressions, clicks, spend"]
+        OBS["Prometheus + Grafana&lt;br/&gt;metrics, dashboards, JSON logs"]
+        SIM ==>|"ad request"| ADS
+        ADS -->|"reads config"| CS
+        ADS ==>|"delivery"| EV
+        ADS -.-> OBS
+        EV -.-> OBS
+        CS -.-> OBS
     end
-    subgraph SUB["SUBSTRATE &#8212; a small ads platform (the proving ground)"]
-        SVC["4 services&lt;br/&gt;real traffic, real logs, real latency"]
-        OBS["Prometheus + Grafana&lt;br/&gt;real dashboards"]
-        FAIL["Injectable failures&lt;br/&gt;real broken configuration"]
+
+    OUT1(["① source, docs,&lt;br/&gt;API contracts, ADRs"])
+    OUT2(["② logs, metrics,&lt;br/&gt;dashboards"])
+    OUT3(["③ real incidents&lt;br/&gt;with a cause in a table"])
+
+    CS --> OUT1
+    OBS --> OUT2
+    SIM --> OUT3
+
+    subgraph BW["&#160;BELLWETHER &#8212; the AI layer, built Day 6 onward&#160;"]
+        direction TB
+        CTX["Context layer&lt;br/&gt;grounds every agent in team knowledge"]
+        DEV["Dev agents&lt;br/&gt;code, tests, PR review, deploy checks"]
+        OPS["Ops agents&lt;br/&gt;triage, log/metric correlation, RCA"]
+        ORCH["Orchestrator&lt;br/&gt;coordinates agents, escalates to a human"]
+        CTX --> DEV
+        CTX --> OPS
+        ORCH -.-> DEV
+        ORCH -.-> OPS
     end
-    SUB -->|"source, docs, contracts, config"| CTX
-    CTX --> DEV & OPS
-    ORCH --> DEV & OPS
-    OBS --> OPS
-    EVAL -.->|"publishes a score for"| BW
-      </pre>
+
+    OUT1 ==>|"ingested, chunked, embedded"| CTX
+    OUT2 ==>|"parsed, correlated"| OPS
+    OUT3 ==>|"the thing to diagnose"| OPS
+
+    EVAL{{"Eval harness&lt;br/&gt;a published score on every capability"}}
+    DEV -.-> EVAL
+    OPS -.-> EVAL
+    CTX -.-> EVAL
+
+    classDef sub fill:#241416,stroke:#b8321f,stroke-width:1px,color:#f3d9d6;
+    classDef ai fill:#12211a,stroke:#2f6f4f,stroke-width:1px,color:#d6ece0;
+    classDef stream fill:#1c1c24,stroke:#6b6b78,stroke-width:1px,color:#eaeaef;
+    classDef evalcls fill:#241f14,stroke:#e8a33d,stroke-width:1px,color:#f0d9ac;
+    class SIM,ADS,CS,EV,OBS sub;
+    class CTX,DEV,OPS,ORCH ai;
+    class OUT1,OUT2,OUT3 stream;
+    class EVAL evalcls;
+        </pre>
+        <figcaption class="figure-cap">
+          <strong>Read it top to bottom.</strong> The substrate runs a real ad-request path, and falls out into three streams. Stream ① becomes the context layer that grounds every agent (Days 6&#8211;10). Stream ② is what the ops agents read during an incident (Days 16&#8211;20). Stream ③ is the incident itself &mdash; a genuinely broken configuration, not a fixture. The eval harness scores every capability and publishes the number, flattering or not.
+        </figcaption>
+      </figure>
 
       <h4 class="sub">Why an ads platform specifically</h4>
 
