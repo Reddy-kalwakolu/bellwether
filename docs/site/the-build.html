@@ -220,6 +220,10 @@
   .tbl td strong { color: var(--text); }
   .good { color: var(--shipped); }
   .bad  { color: var(--found); }
+  /* `.tbl td` sets a colour and outranks a bare class, so every green and amber
+     emphasis in a table was silently rendering plain grey until this was added. */
+  .tbl td.good, .tbl th.good, .tbl tr.good td { color: var(--shipped); }
+  .tbl td.bad,  .tbl th.bad,  .tbl tr.bad td  { color: var(--found); }
 
   .close { padding: 4rem 0 2rem; }
   footer { padding: 2rem 0 4rem; border-top: 1px solid var(--line); }
@@ -335,9 +339,28 @@
   <section class="day" id="problem" data-day="00" data-name="PROBLEM">
     <div class="measure">
       <p class="day-eyebrow">Day 00 · The problem</p>
-      <h3 class="hd">A job posting, and a tension worth taking seriously</h3>
+      <h3 class="hd">Where this started</h3>
 
-      <p>I started with a Netflix job posting &mdash; requisition AJRT30201, Staff AI Engineer on the Ads Platform team. Strip out the boilerplate and it describes one specific, current problem:</p>
+      <p>Netflix has been the company I wanted to work for since well before I could have explained what a distributed system was. Not because of the product &mdash; because of how openly they think in public. Chaos engineering, the microservice patterns half the industry now copies, the causal-inference work, the agentic tooling they have started writing about: most of it was published while it was still being figured out, with the trade-offs left in rather than tidied away.</p>
+
+      <p>That is rare. Most companies publish the polished version, years later, once nothing is at stake. Reading Netflix work through a problem in public taught me more than most of the courses I have paid for.</p>
+
+      <p>So: dream company. Which is a pleasant sentence and completely useless on its own.</p>
+
+      <h4 class="sub">Wanting to work somewhere is not a plan</h4>
+
+      <p>What I actually needed was a way to build something <em>real</em> rather than something aspirational. Which meant answering a question I had never thought to ask properly: how do you find out what a company is about to build, before they build it?</p>
+
+      <p>The answer turned out to be sitting in the open. <strong>A company's engineering blog and its job listings are the two most honest public statements it makes about its own direction.</strong></p>
+
+      <ul>
+        <li><strong>The blog tells you what they have already solved</strong> &mdash; and, more usefully, how they reason. What they measure. What they will accept as evidence.</li>
+        <li><strong>The listings tell you what they are staffing right now</strong> &mdash; which is to say, what somebody has already decided is important enough to spend headcount on, before a line of it ships.</li>
+      </ul>
+
+      <p>So I read both, properly, for weeks. The blog gave me the house style. The listings gave me the target.</p>
+
+      <p>One posting stopped me: <strong>requisition AJRT30201 &mdash; Staff AI Engineer, AI Foundation &amp; Tooling, Ads Platform.</strong> I started pulling it apart, and the more I dug the more it read less like a wish list and more like a roadmap somebody had already committed to. Strip out the boilerplate and it describes one specific, current problem:</p>
 
       <p><strong>Engineering teams can now produce code far faster than they can verify it.</strong></p>
 
@@ -448,9 +471,33 @@ within_budget(...)  &#8594; <span class="g">True</span>     <span class="c"># be
 
       <p>If the agents turn out worse than I hoped, that will be on this page too. It is the only thing that makes the good numbers worth anything.</p>
 
-      <h4 class="sub">The consequence: build the boring half first</h4>
+      <h4 class="sub">The call I had to make before Day 1 existed</h4>
 
-      <p>There is a practical problem with operations agents. To show one diagnosing an outage, you need an outage.</p>
+      <p>With a plan sketched out, one genuinely hard decision was left &mdash; and getting it wrong would have cost me the entire month.</p>
+
+      <p><strong>The job is the AI layer. It is not ad serving.</strong> Nobody is hiring me to write a frequency capper. So which do I build first?</p>
+
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th class="mono">Start with the AI layer</th><th class="mono">Start with the ads platform</th></tr></thead>
+        <tbody>
+          <tr><td>Day 1 is on the actual subject of the job</td><td>Day 1 is on something nobody is hiring me for</td></tr>
+          <tr><td>Something impressive to show by the end of week one</td><td>Five days &mdash; <strong>a sixth of the entire budget</strong> &mdash; before the AI appears at all</td></tr>
+          <tr><td>Agents have nothing real to operate on, so their inputs must be invented</td><td>Agents operate on a system that genuinely runs, genuinely logs, and genuinely breaks</td></tr>
+          <tr class="bad"><td>Every evaluation scores the agent against a fixture I wrote myself</td><td class="good">Every evaluation scores the agent against something that behaves independently of me</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p><strong>I chose the ads platform</strong>, and the last row is the whole reason.</p>
+
+      <p>Play the other choice forward and picture Day 20. I am recording a video where an ops agent diagnoses an outage. Where did the outage come from? A JSON file of log lines I wrote by hand, describing a failure I invented, in a system that was never running. The agent finds the cause &mdash; because I put it there, in the shape I expected it to be found in.</p>
+
+      <p>What has that measured? My ability to write a fixture. Any viewer with production experience sees straight through it, and worse, <em>I</em> would never learn whether the thing works.</p>
+
+      <p>So I paid five days up front. It cost me a week of build videos in which the AI barely appears, and it is the reason every number later on this page is worth reading.</p>
+
+      <h4 class="sub">Which is to say: to show an agent an outage, you need an outage</h4>
 
       <p>Most demos fake it. In code, the fake usually looks about like this:</p>
 
@@ -499,6 +546,46 @@ flowchart TB
         <li><strong>It produces genuine telemetry under load.</strong> Fill rates, rejection reasons, latency percentiles, spend. Real numbers that move for real reasons.</li>
         <li><strong>It is small enough to finish.</strong> Four services, one machine. The substrate is scaffolding, and scaffolding that takes three weeks has eaten the project.</li>
       </ul>
+
+      <h4 class="sub">How "mini" is mini? An honest accounting</h4>
+
+      <p>I want to be precise about this, because "I built a Netflix-style ads platform" is the kind of claim that deserves immediate suspicion.</p>
+
+      <p>What I built is <strong>realistic in shape and tiny in scale</strong>, and those are very different things. Here is the gap, stated plainly:</p>
+
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th>Capability</th><th class="mono">Mine</th><th class="mono">A real one</th><th class="mono">Does the AI layer care?</th></tr></thead>
+        <tbody>
+          <tr><td>Campaigns, creatives, budgets</td><td class="good">yes</td><td>plus contracts, insertion orders, deal terms</td><td class="mono good">yes &mdash; agents read config</td></tr>
+          <tr><td>Targeting</td><td class="good">country, device, rating</td><td>hundreds of dimensions, audience segments</td><td class="mono good">shape, not breadth</td></tr>
+          <tr><td>Frequency capping</td><td class="good">per member, per day</td><td>cross-device, multi-window, identity graph</td><td class="mono good">yes</td></tr>
+          <tr><td>Brand safety</td><td class="good">category exclusions</td><td>ML classification, third-party verification</td><td class="mono good">shape, not accuracy</td></tr>
+          <tr><td>Budget pacing</td><td class="good">even daily spend</td><td>predictive, forecast-driven</td><td class="mono good">yes</td></tr>
+          <tr><td>Ad selection</td><td class="bad">most budget remaining</td><td>real-time auction, bidding, CTR prediction</td><td class="mono">not yet &mdash; see below</td></tr>
+          <tr><td>Event ingestion</td><td class="good">HTTP, idempotent</td><td>streaming pipeline, billions per day</td><td class="mono good">shape, not throughput</td></tr>
+          <tr><td>Observability</td><td class="good">Prometheus + Grafana</td><td>same, plus tracing and anomaly detection</td><td class="mono good">yes &mdash; this is the input</td></tr>
+          <tr><td>Request volume</td><td class="bad">~2 per second</td><td>millions per second</td><td class="mono">no &mdash; throughput teaches it nothing</td></tr>
+          <tr><td>Forecasting &amp; inventory</td><td class="bad">absent</td><td>core to the business</td><td class="mono">future</td></tr>
+          <tr><td>Identity resolution</td><td class="bad">absent</td><td>core to the business</td><td class="mono">future</td></tr>
+          <tr><td>Measurement &amp; attribution</td><td class="bad">absent</td><td>core to the business</td><td class="mono">no</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>Read the right-hand column and the logic of every omission becomes visible. <strong>I built exactly the parts the AI layer has to reason about, and skipped the parts it does not.</strong></p>
+
+      <p>Scale is the clearest example. Going from two requests a second to two million would be weeks of work and would teach the agents nothing new &mdash; a root-cause agent reads the same rejection reason off the same metric either way. Throughput is an interesting engineering problem and an irrelevant one <em>here</em>.</p>
+
+      <p>What I did <em>not</em> compromise on is the part that matters: <strong>every rejection carries a named reason, every request leaves a structured log line, every failure has a cause sitting in a real database, and every number comes from a real run.</strong> Those are the properties an agent operates on. A platform a thousand times larger with none of them would be useless to this project.</p>
+
+      <div class="plant">
+        <span class="tag">What I plan to close, and why</span>
+        <p><strong>A real auction.</strong> Right now the winner is whichever eligible campaign has the most daily budget left &mdash; a rule, not a market. Replacing it with second-price bidding against a predicted click-through rate would give the ops agents a genuinely harder question: <em>"fill rate is fine but revenue per thousand impressions dropped 8% &mdash; why?"</em> That is the sort of incident real ads teams actually fight, and my current substrate cannot produce it.</p>
+        <p><strong>A forecasting service.</strong> Inventory prediction would introduce a component that is <em>wrong on purpose</em> &mdash; models drift &mdash; which is a different and more interesting failure class than a bad config deploy.</p>
+        <p><strong>More realistic targeting breadth.</strong> Not for realism's sake, but because a decision path with thirty dimensions is much harder to explain than one with three &mdash; and explaining decisions is precisely what Level 3's agents are graded on.</p>
+        <p>None of these are on the thirty-day plan. All of them make the substrate a harder and more honest test, which is the only reason they are on a list at all.</p>
+      </div>
 
       <h4 class="sub">The thirty days, in six levels</h4>
 
