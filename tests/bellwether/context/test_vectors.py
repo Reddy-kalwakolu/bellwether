@@ -42,12 +42,12 @@ class FakeRequest:
 
     def __init__(self, responses: dict[str, tuple[int, dict[str, Any]]] | None = None) -> None:
         self.responses = responses or {}
-        self.calls: list[tuple[str, str, dict[str, Any] | None]] = []
+        self.calls: list[tuple[str, str, dict[str, Any]]] = []
 
     def __call__(
         self, method: str, url: str, payload: dict[str, Any] | None
     ) -> tuple[int, dict[str, Any]]:
-        self.calls.append((method, url, payload))
+        self.calls.append((method, url, payload if payload is not None else {}))
         for key, response in self.responses.items():
             wanted_method, fragment = key.split(" ", 1)
             if method == wanted_method and fragment in url:

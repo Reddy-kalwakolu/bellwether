@@ -13,6 +13,7 @@ database client library would be a second way to describe the same four calls.
 
 from __future__ import annotations
 
+import math
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -168,8 +169,8 @@ class InMemoryVectorStore:
 def _cosine(left: list[float], right: list[float]) -> float:
     """Cosine similarity, tolerant of unnormalised input."""
     dot = sum(a * b for a, b in zip(left, right, strict=False))
-    left_norm = sum(value * value for value in left) ** 0.5
-    right_norm = sum(value * value for value in right) ** 0.5
+    left_norm = math.sqrt(sum(value * value for value in left))
+    right_norm = math.sqrt(sum(value * value for value in right))
     if left_norm == 0.0 or right_norm == 0.0:
         return 0.0
     return dot / (left_norm * right_norm)
