@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BELLWETHER — The Build, Day 0 to Day 7</title>
-<meta name="description" content="Eight days building an AI-native engineering platform in public: the method, every tool and why it won, the architecture, every decision, and each bug reality found.">
+<title>BELLWETHER — The Build</title>
+<meta name="description" content="A thirty-day AI-native platform build, explained as it happens: the method, every tool and why it won, the architecture, every decision, and each bug reality found. Extended every build day.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -113,6 +113,41 @@
   .fact b { display: block; font-family: var(--font-mono); font-size: 1.25rem; color: var(--text); }
   .fact span { font-family: var(--font-mono); font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
 
+  /* ---- the thirty-day arc: this page is not finished ---- */
+  .progress { margin-top: 2.4rem; }
+  .progress-head {
+    display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+    font-family: var(--font-mono); font-size: .64rem; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--dim); margin-bottom: .7rem;
+  }
+  .progress-strip { display: grid; grid-template-columns: repeat(30, 1fr); gap: 3px; }
+  .pseg {
+    height: 26px; border-radius: 3px; background: var(--panel-2);
+    border: 1px solid var(--line); position: relative;
+    transition: transform .15s ease, border-color .15s ease;
+  }
+  .pseg:hover { transform: translateY(-3px); border-color: var(--dim); }
+  .pseg.done { background: var(--signal); border-color: var(--signal); box-shadow: 0 0 14px rgba(229, 9, 20, .4); }
+  .pseg.now::after {
+    content: ""; position: absolute; right: -2px; top: -5px; bottom: -5px;
+    width: 2px; background: var(--text); border-radius: 2px;   /* the playhead */
+  }
+  .progress-levels {
+    display: grid; grid-template-columns: repeat(30, 1fr); gap: 3px; margin-top: .45rem;
+    font-family: var(--font-mono); font-size: .55rem; color: var(--dim); letter-spacing: .08em;
+  }
+  .progress-levels span { border-left: 1px solid var(--line); padding-left: .3rem; overflow: hidden; }
+  .progress-levels .l0 { grid-column: 1 / 6; }
+  .progress-levels .l1 { grid-column: 6 / 11; }
+  .progress-levels .l2 { grid-column: 11 / 16; }
+  .progress-levels .l3 { grid-column: 16 / 21; }
+  .progress-levels .l4 { grid-column: 21 / 26; }
+  .progress-levels .l5 { grid-column: 26 / 31; }
+  @media (max-width: 700px) {
+    .progress-levels { font-size: 0; }
+    .pseg { height: 18px; }
+  }
+
   /* ---- reel dividers: the act breaks ---- */
   .reel { padding: 4.2rem 0 1rem; }
   .reel-num { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .28em; color: var(--signal); text-transform: uppercase; }
@@ -215,16 +250,55 @@
 
 <header class="hero">
   <div class="wrap">
-    <p class="eyebrow"><span class="tick">&#9656;</span> DAY 00 &#8594; DAY 07 · THE COMPLETE ACCOUNT</p>
+    <p class="eyebrow"><span class="tick">&#9656;</span> A LIVING ACCOUNT · EXTENDED EVERY BUILD DAY</p>
     <h1 class="mark">How you build a<br>platform an AI can<br><em>actually operate</em></h1>
-    <p class="lede">Eight days. A working ads platform, then the beginnings of an AI layer that understands it. This page explains all of it &mdash; the method used every day, every tool and why it beat the alternative, the architecture at each stage, every decision and its expiry condition, and each time reality pushed back. Written to be understood, not skimmed.</p>
+    <p class="lede">A thirty-day build, explained as it happens. This page grows on every build day &mdash; the method used, every tool and why it beat the alternative, the architecture at each stage, every decision and its expiry condition, and each time reality pushed back.</p>
+    <p class="lede"><strong>It currently covers Day 0 through Day 07.</strong> Nothing is written with hindsight: the mistakes are recorded on the day they were made, by the person who made them, and they stay on the page afterwards.</p>
+
+    <div class="progress">
+      <div class="progress-head"><span>The thirty-day arc</span><span>Day 07 &middot; Level 1 in progress</span></div>
+      <div class="progress-strip" role="img" aria-label="Day 7 of 30 written">
+        <div class="pseg done" title="Day 1 — Repo, ADR-0001, infra skeleton, CI · written"></div>
+        <div class="pseg done" title="Day 2 — campaign-service · written"></div>
+        <div class="pseg done" title="Day 3 — ad-decision-service · written"></div>
+        <div class="pseg done" title="Day 4 — event-service + dashboards · written"></div>
+        <div class="pseg done" title="Day 5 — traffic-simulator + Level 0 gate · written"></div>
+        <div class="pseg done" title="Day 6 — Document ingestion pipeline · written"></div>
+        <div class="pseg done now" title="Day 7 — Chunking, embeddings, Qdrant · written"></div>
+        <div class="pseg" title="Day 8 — Hybrid retrieval + the console · ahead"></div>
+        <div class="pseg" title="Day 9 — AST knowledge graph · ahead"></div>
+        <div class="pseg" title="Day 10 — MCP server + Level 1 gate · ahead"></div>
+        <div class="pseg" title="Day 11 · ahead"></div>
+        <div class="pseg" title="Day 12 · ahead"></div>
+        <div class="pseg" title="Day 13 · ahead"></div>
+        <div class="pseg" title="Day 14 · ahead"></div>
+        <div class="pseg" title="Day 15 · ahead"></div>
+        <div class="pseg" title="Day 16 · ahead"></div>
+        <div class="pseg" title="Day 17 · ahead"></div>
+        <div class="pseg" title="Day 18 · ahead"></div>
+        <div class="pseg" title="Day 19 · ahead"></div>
+        <div class="pseg" title="Day 20 · ahead"></div>
+        <div class="pseg" title="Day 21 · ahead"></div>
+        <div class="pseg" title="Day 22 · ahead"></div>
+        <div class="pseg" title="Day 23 · ahead"></div>
+        <div class="pseg" title="Day 24 · ahead"></div>
+        <div class="pseg" title="Day 25 · ahead"></div>
+        <div class="pseg" title="Day 26 · ahead"></div>
+        <div class="pseg" title="Day 27 · ahead"></div>
+        <div class="pseg" title="Day 28 · ahead"></div>
+        <div class="pseg" title="Day 29 · ahead"></div>
+        <div class="pseg" title="Day 30 · ahead"></div>
+      </div>
+      <div class="progress-levels" aria-hidden="true"><span class="l0">L0 SUBSTRATE</span><span class="l1">L1 CONTEXT</span><span class="l2">L2 DEV AGENTS</span><span class="l3">L3 OPS AGENTS</span><span class="l4">L4 ORCHESTRATION</span><span class="l5">L5 LAUNCH</span></div>
+    </div>
+
     <div class="facts">
-      <div class="fact"><b>8</b><span>days elapsed</span></div>
+      <div class="fact"><b>07 / 30</b><span>days written</span></div>
+      <div class="fact"><b>1 / 6</b><span>levels complete</span></div>
       <div class="fact"><b>5</b><span>services running</span></div>
       <div class="fact"><b>289</b><span>tests passing</span></div>
       <div class="fact"><b>8</b><span>decisions recorded</span></div>
       <div class="fact"><b>11/11</b><span>level 0 gate</span></div>
-      <div class="fact"><b>$0.0223</b><span>to embed it all</span></div>
     </div>
   </div>
 </header>
@@ -1421,7 +1495,7 @@ flowchart TB
   <section class="close" id="now" data-day="NOW" data-name="WHERE IT STANDS">
     <div class="measure">
       <p class="day-eyebrow">Closing</p>
-      <h3 class="hd">Eight days in</h3>
+      <h3 class="hd">Where it stands today</h3>
 
       <p>There is a working ads platform &mdash; five services, real traffic, real dashboards, and incidents that can be caused on demand and are genuinely real when they happen. On top of it, the beginnings of an AI layer that has read the entire project and can find things in it by meaning.</p>
 
@@ -1481,7 +1555,7 @@ flowchart TB
 
       <p>Which is, in the end, the entire argument of the project. <strong>An AI that writes code quickly is only useful if something can prove the code is right.</strong> That proof cannot come from a fixture, a mock, or a demo that worked once on camera. It has to come from the real system, misbehaving in real ways, measured by numbers that get published whether they flatter or not.</p>
 
-      <p>Twenty-two days remain.</p>
+      <p><strong>Twenty-three days remain, and this page grows with them.</strong> Level 1 finishes with hybrid retrieval, a knowledge graph built from the code's own structure, and an MCP server that lets any AI client query this project's knowledge directly. Then the agents arrive &mdash; and every one of them gets a number next to it.</p>
     </div>
   </section>
 
