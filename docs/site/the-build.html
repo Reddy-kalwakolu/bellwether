@@ -220,10 +220,12 @@
   .tbl td strong { color: var(--text); }
   .good { color: var(--shipped); }
   .bad  { color: var(--found); }
-  /* `.tbl td` sets a colour and outranks a bare class, so every green and amber
-     emphasis in a table was silently rendering plain grey until this was added. */
-  .tbl td.good, .tbl th.good, .tbl tr.good td { color: var(--shipped); }
-  .tbl td.bad,  .tbl th.bad,  .tbl tr.bad td  { color: var(--found); }
+  /* `.tbl td` sets a colour and outranks a bare class, so emphasis inside a table
+     needs this specificity to show at all. Cell-level only, deliberately: a
+     row-level rule outranks a cell-level one and would repaint a green cell
+     amber inside a row marked otherwise. */
+  .tbl td.good, .tbl th.good { color: var(--shipped); }
+  .tbl td.bad,  .tbl th.bad  { color: var(--found); }
 
   .close { padding: 4rem 0 2rem; }
   footer { padding: 2rem 0 4rem; border-top: 1px solid var(--line); }
@@ -479,17 +481,22 @@ within_budget(...)  &#8594; <span class="g">True</span>     <span class="c"># be
 
       <div class="tbl-scroll">
       <table class="tbl">
-        <thead><tr><th class="mono">Start with the AI layer</th><th class="mono">Start with the ads platform</th></tr></thead>
+        <thead><tr>
+          <th class="mono">Start with the AI layer &mdash; rejected</th>
+          <th class="mono good">Start with the ads platform &mdash; chosen &#10003;</th>
+        </tr></thead>
         <tbody>
           <tr><td>Day 1 is on the actual subject of the job</td><td>Day 1 is on something nobody is hiring me for</td></tr>
           <tr><td>Something impressive to show by the end of week one</td><td>Five days &mdash; <strong>a sixth of the entire budget</strong> &mdash; before the AI appears at all</td></tr>
-          <tr><td>Agents have nothing real to operate on, so their inputs must be invented</td><td>Agents operate on a system that genuinely runs, genuinely logs, and genuinely breaks</td></tr>
-          <tr class="bad"><td>Every evaluation scores the agent against a fixture I wrote myself</td><td class="good">Every evaluation scores the agent against something that behaves independently of me</td></tr>
+          <tr><td class="bad">Agents have nothing real to operate on, so their inputs must be invented</td><td class="good">Agents operate on a system that genuinely runs, genuinely logs, and genuinely breaks</td></tr>
+          <tr><td class="bad">Every evaluation scores the agent against a fixture I wrote myself</td><td class="good">Every evaluation scores the agent against something that behaves independently of me</td></tr>
         </tbody>
       </table>
       </div>
 
-      <p><strong>I chose the ads platform</strong>, and the last row is the whole reason.</p>
+      <p>The top two rows are about convenience &mdash; what is quicker, what looks good sooner. <strong>The bottom two are about whether any of it means anything</strong>, and that is where the argument actually gets settled.</p>
+
+      <p><strong>I chose the ads platform.</strong></p>
 
       <p>Play the other choice forward and picture Day 20. I am recording a video where an ops agent diagnoses an outage. Where did the outage come from? A JSON file of log lines I wrote by hand, describing a failure I invented, in a system that was never running. The agent finds the cause &mdash; because I put it there, in the shape I expected it to be found in.</p>
 
