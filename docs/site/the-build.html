@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BELLWETHER — The Build, Day 0 to Day 7</title>
+<meta name="description" content="Eight days of building an AI-native engineering platform in public: the story, the architecture, every decision, and every bug that reality found.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: "base",
+    themeVariables: {
+      darkMode: true,
+      background: "#131318",
+      primaryColor: "#1c1c24",
+      primaryTextColor: "#eaeaef",
+      primaryBorderColor: "#3a3a46",
+      secondaryColor: "#1c1c24",
+      tertiaryColor: "#16161d",
+      lineColor: "#6b6b78",
+      textColor: "#c9c9d2",
+      fontFamily: "JetBrains Mono, monospace",
+      fontSize: "13px",
+      // Sequence-diagram notes default to a bright highlighter yellow, which is
+      // unreadable on this canvas. These four are not covered by darkMode.
+      noteBkgColor: "#241f14",
+      noteTextColor: "#e8a33d",
+      noteBorderColor: "#4a3d22",
+      actorBkg: "#1c1c24",
+      actorBorder: "#3a3a46",
+      actorTextColor: "#eaeaef",
+      signalColor: "#9a9aa6",
+      signalTextColor: "#c9c9d2"
+    }
+  });
+</script>
+<style>
+  :root {
+    --ink: #0a0a0d;
+    --panel: #131318;
+    --panel-2: #16161d;
+    --line: #26262e;
+    --text: #eaeaef;
+    --dim: #9a9aa6;
+    --signal: #e50914;
+    --shipped: #46d369;
+    /* One new token, earning its place: it marks the recurring "what reality
+       found" callout, which is a distinct category appearing once per day. */
+    --found: #e8a33d;
+    --font-display: "Bricolage Grotesque", sans-serif;
+    --font-body: "Instrument Sans", sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--ink); color: var(--text);
+    font-family: var(--font-body); line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; border-radius: 2px; }
+  img, svg { max-width: 100%; }
+
+  /* ---- top bar ---- */
+  .bar {
+    position: sticky; top: 0; z-index: 30;
+    background: color-mix(in srgb, var(--ink) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar-in {
+    max-width: 1240px; margin: 0 auto; padding: .65rem 1.5rem;
+    display: flex; align-items: center; gap: 1rem;
+    font-family: var(--font-mono); font-size: .72rem; letter-spacing: .08em;
+  }
+  .rec { display: flex; align-items: center; gap: .45rem; color: var(--signal); font-weight: 700; }
+  .rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--signal); animation: blink 1.6s steps(2, start) infinite; }
+  @keyframes blink { to { visibility: hidden; } }
+  .bar-title { color: var(--dim); }
+  .bar-back { margin-left: auto; color: var(--dim); text-decoration: none; }
+  .bar-back:hover { color: var(--text); }
+
+  /* ---- layout ---- */
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 1.5rem; }
+  .cols { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 2.5rem; }
+  .measure { max-width: 68ch; }
+
+  /* ---- SIGNATURE: the spine and its playhead ---- */
+  .spine { position: relative; }
+  .spine-inner {
+    position: sticky; top: 96px; height: calc(100vh - 190px);
+    display: flex; flex-direction: column;
+  }
+  .spine-label {
+    font-family: var(--font-mono); font-size: .6rem; letter-spacing: .2em;
+    color: var(--dim); text-transform: uppercase; margin-bottom: 1rem;
+  }
+  .spine-track {
+    position: relative; flex: 1; width: 2px; background: var(--line);
+    margin-left: 5px; border-radius: 2px;
+  }
+  .spine-fill {
+    position: absolute; top: 0; left: 0; width: 100%; height: 0;
+    background: var(--signal); border-radius: 2px;
+    box-shadow: 0 0 12px rgba(229, 9, 20, .55);
+  }
+  /* The playhead: the same device the day-tracker uses on the index page. */
+  .spine-head {
+    position: absolute; left: -4px; width: 10px; height: 2px;
+    background: var(--text); border-radius: 2px; top: 0;
+  }
+  .spine-marks { position: absolute; inset: 0; }
+  .spine-mark {
+    position: absolute; left: -4px; display: flex; align-items: center; gap: .6rem;
+    text-decoration: none; transform: translateY(-50%);
+  }
+  .spine-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--ink); border: 2px solid var(--line); flex: none;
+  }
+  .spine-name {
+    font-family: var(--font-mono); font-size: .62rem; letter-spacing: .1em;
+    color: var(--dim); white-space: nowrap;
+  }
+  .spine-mark.on .spine-dot { background: var(--signal); border-color: var(--signal); }
+  .spine-mark.on .spine-name { color: var(--text); }
+
+  /* ---- hero ---- */
+  .hero { padding: 5rem 0 3.4rem; border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    font-family: var(--font-mono); font-size: .72rem; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--dim); margin-bottom: 1.1rem;
+  }
+  .eyebrow .tick { color: var(--signal); }
+  h1.mark {
+    font-family: var(--font-display); font-weight: 800;
+    font-size: clamp(2.6rem, 7vw, 5rem); line-height: 1.0; letter-spacing: -.03em;
+  }
+  h1.mark em { font-style: normal; color: var(--signal); }
+  .lede { max-width: 60ch; margin-top: 1.5rem; font-size: 1.16rem; color: var(--dim); }
+  .facts {
+    margin-top: 2.2rem; display: grid; gap: 1px; background: var(--line);
+    border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+  .fact { background: var(--panel); padding: 1rem 1.1rem; }
+  .fact b {
+    display: block; font-family: var(--font-mono); font-size: 1.25rem;
+    color: var(--text); letter-spacing: -.01em;
+  }
+  .fact span {
+    font-family: var(--font-mono); font-size: .64rem; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--dim);
+  }
+
+  /* ---- day sections ---- */
+  .day { padding: 3.8rem 0; border-bottom: 1px solid var(--line); }
+  .day-eyebrow {
+    font-family: var(--font-mono); font-size: .7rem; letter-spacing: .2em;
+    text-transform: uppercase; color: var(--signal); margin-bottom: .7rem;
+  }
+  h2 {
+    font-family: var(--font-display); font-weight: 600;
+    font-size: clamp(1.55rem, 3.2vw, 2.15rem); letter-spacing: -.02em;
+    line-height: 1.2; margin-bottom: 1.1rem;
+  }
+  h3 {
+    font-family: var(--font-display); font-weight: 600; font-size: 1.08rem;
+    margin: 2.4rem 0 .7rem; letter-spacing: -.01em;
+  }
+  .day p { color: var(--dim); margin-bottom: 1rem; }
+  .day p.tight { margin-bottom: .5rem; }
+  strong { color: var(--text); font-weight: 600; }
+  code {
+    font-family: var(--font-mono); font-size: .84em;
+    background: var(--panel-2); border: 1px solid var(--line);
+    padding: .08em .38em; border-radius: 4px; color: var(--text);
+  }
+  ul { color: var(--dim); margin: 0 0 1rem 1.1rem; padding: 0; }
+  li { margin-bottom: .45rem; }
+
+  pre.mermaid {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 1.2rem; overflow-x: auto; margin: 1.4rem 0;
+  }
+
+  /* ---- recurring devices ---- */
+  .decision, .found, .aside {
+    border: 1px solid var(--line); border-radius: 8px;
+    background: var(--panel); padding: 1.2rem 1.4rem; margin: 1.5rem 0;
+  }
+  .decision { border-left: 3px solid var(--signal); }
+  .found    { border-left: 3px solid var(--found); }
+  .aside    { border-left: 3px solid var(--line); }
+  .tag {
+    font-family: var(--font-mono); font-size: .62rem; letter-spacing: .18em;
+    text-transform: uppercase; display: block; margin-bottom: .5rem;
+  }
+  .decision .tag { color: var(--signal); }
+  .found .tag { color: var(--found); }
+  .aside .tag { color: var(--dim); }
+  .decision h4, .found h4, .aside h4 {
+    font-family: var(--font-display); font-size: 1rem; font-weight: 600; margin-bottom: .5rem;
+  }
+  .decision p, .found p, .aside p { font-size: .95rem; margin-bottom: .7rem; }
+  .decision p:last-child, .found p:last-child, .aside p:last-child { margin-bottom: 0; }
+  .trigger {
+    font-family: var(--font-mono); font-size: .76rem; color: var(--dim);
+    border-top: 1px dashed var(--line); padding-top: .7rem; margin-top: .9rem;
+  }
+  .trigger b { color: var(--found); }
+
+  /* ---- tables ---- */
+  .tbl-scroll { overflow-x: auto; margin: 1.3rem 0; }
+  .tbl { width: 100%; border-collapse: collapse; font-size: .86rem; min-width: 460px; }
+  .tbl th {
+    font-family: var(--font-mono); font-size: .66rem; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--dim); font-weight: 500;
+    text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  .tbl td { padding: .55rem .7rem; border-bottom: 1px solid var(--panel-2); vertical-align: top; color: var(--dim); }
+  .tbl tr:hover td { background: var(--panel); }
+  .tbl td.mono, .tbl th.mono { font-family: var(--font-mono); font-size: .78rem; }
+  .tbl td strong { color: var(--text); }
+  .good { color: var(--shipped); }
+  .bad  { color: var(--found); }
+
+  /* ---- closing ---- */
+  .close { padding: 4rem 0 2rem; }
+  footer { padding: 2rem 0 4rem; border-top: 1px solid var(--line); }
+  footer .wrap { font-family: var(--font-mono); font-size: .74rem; color: var(--dim); letter-spacing: .06em; }
+  footer b { color: var(--text); }
+  footer a { color: var(--dim); }
+
+  @media (max-width: 900px) {
+    .cols { grid-template-columns: 1fr; gap: 0; }
+    .spine { display: none; }
+    body { line-height: 1.65; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .rec-dot { animation: none; }
+    .spine-fill, .spine-head { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bar" role="banner">
+  <div class="bar-in">
+    <span class="rec"><span class="rec-dot" aria-hidden="true"></span>REC</span>
+    <span class="bar-title">BELLWETHER · THE BUILD</span>
+    <a class="bar-back" href="index.html">&#8592; build log</a>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow"><span class="tick">&#9656;</span> DAY 00 &#8594; DAY 07 · THE WHOLE STORY, IN ORDER</p>
+    <h1 class="mark">How you build a<br>platform an AI can<br><em>actually operate</em></h1>
+    <p class="lede">Eight days. A working ads platform, then the beginnings of an AI layer that understands it. This is the complete account &mdash; what got built, why each decision went the way it did, and every time reality pushed back. No skipped steps, no tidied-up hindsight.</p>
+    <div class="facts">
+      <div class="fact"><b>8</b><span>days elapsed</span></div>
+      <div class="fact"><b>5</b><span>services running</span></div>
+      <div class="fact"><b>289</b><span>tests passing</span></div>
+      <div class="fact"><b>8</b><span>decisions recorded</span></div>
+      <div class="fact"><b>11/11</b><span>level 0 gate</span></div>
+      <div class="fact"><b>$0.0223</b><span>to embed it all</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+<div class="cols">
+
+  <!-- ============ THE SPINE ============ -->
+  <nav class="spine" aria-label="Day navigation">
+    <div class="spine-inner">
+      <p class="spine-label">Timeline</p>
+      <div class="spine-track">
+        <div class="spine-fill" id="spineFill"></div>
+        <div class="spine-head" id="spineHead"></div>
+        <div class="spine-marks" id="spineMarks"></div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============ CONTENT ============ -->
+  <main>
+
+  <!-- ---------------- DAY 0 ---------------- -->
+  <section class="day" id="day-0" data-day="00" data-name="THE IDEA">
+    <div class="measure">
+      <p class="day-eyebrow">Day 00 · The idea</p>
+      <h2>A job posting, and a problem worth solving</h2>
+
+      <p>It starts with a Netflix job posting &mdash; requisition AJRT30201, Staff AI Engineer on the Ads Platform team. Read past the boilerplate and the posting is describing a specific, current problem: <strong>engineering teams can now ship code far faster than they can verify it.</strong></p>
+
+      <p>AI writes the code quickly. It also writes plausible-looking code that is subtly wrong, and nobody notices until production does. The posting asks for someone who can make a team fast <em>without</em> accumulating that debt.</p>
+
+      <p>Most portfolio projects respond to that by demoing an impressive-looking agent. An agent demo proves almost nothing &mdash; anyone can find a prompt that works once on camera. So this project takes the opposite bet.</p>
+
+      <div class="decision">
+        <span class="tag">The bet</span>
+        <h4>Every capability ships with a number</h4>
+        <p>Not "here is an agent that reviews pull requests" but "here is an agent that caught 7 of 10 deliberately planted bugs, here is the eval that measured it, and here is the run where it scored 4."</p>
+        <p>That's harder to build and much harder to fake. It is also the only version of this project that a Staff engineer would find interesting rather than familiar.</p>
+      </div>
+
+      <h3>The thing nobody builds first</h3>
+
+      <p>There's a problem with AI-operations demos. To show an agent diagnosing an outage, you need an outage. Most demos fake one &mdash; a JSON file of pretend logs, a chart drawn from invented numbers.</p>
+
+      <p>An agent tested against a fake failure can only ever find the fake. The evaluation measures the fixture, not the agent.</p>
+
+      <p>So BELLWETHER is deliberately two systems, and the unglamorous one gets built first.</p>
+
+      <pre class="mermaid">
+flowchart TB
+    subgraph BW["BELLWETHER &#8212; the AI layer (the point)"]
+        CTX["Context layer&lt;br/&gt;knows the codebase"]
+        DEV["Dev agents&lt;br/&gt;write and review code"]
+        OPS["Ops agents&lt;br/&gt;diagnose incidents"]
+        ORCH["Orchestrator&lt;br/&gt;coordinates them"]
+        EVAL["Eval harness&lt;br/&gt;proves it works"]
+    end
+    subgraph SUB["SUBSTRATE &#8212; a small ads platform (the proving ground)"]
+        SVC["4 real services&lt;br/&gt;real traffic, real logs"]
+        OBS["Prometheus + Grafana&lt;br/&gt;real dashboards"]
+        FAIL["Injectable failures&lt;br/&gt;real broken states"]
+    end
+    SUB -->|"code, docs, logs, metrics"| CTX
+    CTX --> DEV & OPS
+    ORCH --> DEV & OPS
+    OBS --> OPS
+    EVAL -.->|"scores everything"| BW
+      </pre>
+
+      <p>The <strong>substrate</strong> is a miniature version of the kind of system Netflix's ads team actually runs. It exists so the AI layer has something genuine to operate on. When an agent later diagnoses a broken deployment, the deployment will really be broken.</p>
+
+      <p>Days 1 to 5 build the substrate. Everything after that is the AI layer.</p>
+    </div>
+  </section>
+
+  <!-- ---------------- DAY 1 ---------------- -->
+  <section class="day" id="day-1" data-day="01" data-name="FOUNDATION">
+    <div class="measure">
+      <p class="day-eyebrow">Day 01 · Foundation</p>
+      <h2>The boring day that decides the next twenty-nine</h2>
+
+      <p>Day 1 produces nothing a user could touch. It sets up the workshop: how code gets checked, how the database starts, how anyone knows whether the thing is working.</p>
+
+      <p>Skipping this is the single most common way a 30-day build collapses around day nine.</p>
+
+      <h3>The quality gates, installed before the code</h3>
+
+      <p>Four tools run on every single change, and all four must pass:</p>
+
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th class="mono">Tool</th><th>What it does</th><th>Why it's non-negotiable</th></tr></thead>
+        <tbody>
+          <tr><td class="mono"><strong>ruff</strong></td><td>Catches unused imports, bad patterns, style drift</td><td>Style arguments are a waste of a day; a tool ends them</td></tr>
+          <tr><td class="mono"><strong>ruff format</strong></td><td>Reformats every file identically</td><td>Diffs show meaning, not whitespace</td></tr>
+          <tr><td class="mono"><strong>mypy --strict</strong></td><td>Verifies every value is the type claimed</td><td>Catches a whole class of bug before the code runs</td></tr>
+          <tr><td class="mono"><strong>pytest</strong></td><td>Runs the test suite</td><td>The only evidence that anything works</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p><code>--strict</code> matters more than it sounds. Normal type checking is advisory; strict mode refuses to let anything be untyped. It's uncomfortable for about two days and then it silently prevents dozens of bugs. Later, when AI agents start generating code for this repo, these four tools become the <em>fence</em> &mdash; generated code that fails them never lands.</p>
+
+      <h3>The first real decision</h3>
+
+      <p>The system needs a database, a cache, a metrics collector and a dashboard, all started reliably. The industry-default answer in 2026 is Kubernetes.</p>
+
+      <div class="decision">
+        <span class="tag">ADR-0001</span>
+        <h4>Docker Compose, not Kubernetes</h4>
+        <p>Kubernetes is built for hundreds of services across many machines, surviving hardware failure and traffic spikes. This is four services on one laptop.</p>
+        <p>Kubernetes would add days of configuration and prove nothing about AI engineering &mdash; the actual subject. Compose starts everything with one command and stays legible.</p>
+        <p>Choosing infrastructure <em>proportionate to the problem</em> is the senior signal. Reaching for the biggest tool available is the opposite.</p>
+        <p class="trigger"><b>Trigger to revisit:</b> if this ever needs to run across more than one machine.</p>
+      </div>
+
+      <p>Every decision on this project is written down like that &mdash; as an <strong>Architecture Decision Record</strong>. Each one names the alternatives that were rejected and, crucially, <strong>the trigger that would change the answer</strong>. A decision without a trigger is just an opinion that hardens into folklore.</p>
+
+      <div class="aside">
+        <span class="tag">Small detail, saved hours</span>
+        <p>Postgres was published on port <strong>5433</strong> instead of the standard 5432, and Redis on <strong>6380</strong> instead of 6379. Any other database already running on the machine would otherwise silently collide, producing failures that look like code bugs and are not.</p>
+      </div>
+
+      <p>Day 1 also shipped the <a href="index.html">running doc</a> &mdash; a live HTML page with the architecture, a 30-day tracker, and an eval scoreboard whose numbers were all empty. Publishing empty cells on day one is a commitment: those cells are the whole point of the series.</p>
+    </div>
+  </section>
+
+  <!-- ---------------- DAY 2 ---------------- -->
+  <section class="day" id="day-2" data-day="02" data-name="CAMPAIGNS">
+    <div class="measure">
+      <p class="day-eyebrow">Day 02 · campaign-service</p>
+      <h2>Where the advertisers live</h2>
+
+      <p>First real service. It stores campaigns &mdash; an advertiser's instructions about when and to whom their advert may be shown.</p>
+
+      <p>The domain vocabulary here is deliberate. These are the exact terms the Netflix posting uses:</p>
+
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th class="mono">Term</th><th>In plain English</th></tr></thead>
+        <tbody>
+          <tr><td class="mono"><strong>targeting</strong></td><td>Who may see this &mdash; countries, device types, content ratings</td></tr>
+          <tr><td class="mono"><strong>frequency cap</strong></td><td>The most times one viewer may see it in a day</td></tr>
+          <tr><td class="mono"><strong>brand safety</strong></td><td>Content this advertiser refuses to appear beside</td></tr>
+          <tr><td class="mono"><strong>pacing</strong></td><td>Spreading a daily budget across the day instead of by 9am</td></tr>
+          <tr><td class="mono"><strong>creative</strong></td><td>The actual video file, with its duration</td></tr>
+          <tr><td class="mono"><strong>flight window</strong></td><td>The dates the campaign runs between</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <pre class="mermaid">
+flowchart LR
+    C["Campaign&lt;br/&gt;budget · daily budget&lt;br/&gt;frequency cap&lt;br/&gt;flight window"]
+    T["Targeting&lt;br/&gt;countries&lt;br/&gt;device types&lt;br/&gt;content ratings"]
+    B["Brand safety&lt;br/&gt;excluded categories"]
+    CR["Creative&lt;br/&gt;asset URL&lt;br/&gt;duration"]
+    C --> T
+    C --> B
+    C -->|"one to many"| CR
+    C --> PG[("Postgres")]
+      </pre>
+
+      <h3>Money is never a decimal</h3>
+
+      <p>Budgets are stored as whole numbers of <strong>micros</strong> &mdash; millionths of a currency unit. Ten dollars is <code>10000000</code>.</p>
+
+      <p>This looks awkward and prevents a real disaster. Computers cannot represent <code>0.1</code> exactly in the decimal format most languages default to. Add it ten times and you get <code>0.9999999999999999</code>. Do that across millions of ad impressions and the books stop balancing. Whole numbers never drift.</p>
+
+      <div class="decision">
+        <span class="tag">ADR-0002</span>
+        <h4>Build the tables directly, no migration tooling &mdash; for now</h4>
+        <p>Normally, changing a database's shape needs a <em>migration</em>: a versioned script so an existing database can be upgraded without losing data. The standard tool is Alembic.</p>
+        <p>At this point there is one service writing, no data anyone depends on, and a schema that will change every single day through Day 5. Migrations written against a shape that churns daily are noise pretending to be safety.</p>
+        <p class="trigger"><b>Trigger to revisit:</b> the first time a second service reads these tables.</p>
+      </div>
+
+      <h3>Failures have a shape</h3>
+
+      <p>Every error &mdash; a bad request, a missing campaign, anything &mdash; returns the same envelope:</p>
+
+      <pre class="mermaid">
+flowchart LR
+    OK["Success&lt;br/&gt;the object you asked for"]
+    ERR["Failure&lt;br/&gt;{ error: { code, message } }"]
+    R["Any request"] --> OK
+    R --> ERR
+    ERR -.->|"never a bare 500"| N["a caller can always&lt;br/&gt;parse what went wrong"]
+      </pre>
+
+      <p>A generic "500 Internal Server Error" tells a caller nothing. Every failure here is typed and explained. That standard gets violated on Day 5, gets caught, and gets fixed &mdash; which is exactly what writing a standard down is for.</p>
+
+      <p>Every request also emits <strong>one line of structured JSON</strong> to the logs, carrying the service name, the endpoint, and how many milliseconds it took. Not prose &mdash; data. On Day 16, ops agents will read these without a single regular expression.</p>
+
+      <p class="tight"><strong>Day 2 ended at 23 tests passing.</strong></p>
+    </div>
+  </section>
+
+  <!-- ---------------- DAY 3 ---------------- -->
+  <section class="day" id="day-3" data-day="03" data-name="DECISIONS">
+    <div class="measure">
+      <p class="day-eyebrow">Day 03 · ad-decision-service</p>
+      <h2>The twenty milliseconds that matter</h2>
+
+      <p>This is the heart of any ads platform. A viewer reaches an ad break. Something must decide, in milliseconds, which advert to play &mdash; or that none is suitable.</p>
+
+      <p>The request carries who is watching and what slot is available. The answer is one advert, or a <em>no-fill</em> with a reason.</p>
+
+      <h3>Six filters, in order</h3>
+
+      <p>Every campaign in the system is a candidate. Each filter eliminates some, and the order is chosen so the cheapest checks run first:</p>
+
+      <pre class="mermaid">
+flowchart TB
+    REQ["Ad request&lt;br/&gt;member + slot"] --> F1
+    F1["1 · Eligibility&lt;br/&gt;is it active and in flight?"] --> F2
+    F2["2 · Targeting&lt;br/&gt;right country, device, rating?"] --> F3
+    F3["3 · Brand safety&lt;br/&gt;does this content offend the advertiser?"] --> F4
+    F4["4 · Frequency cap&lt;br/&gt;has this viewer seen it enough?"] --> F5
+    F5["5 · Budget pacing&lt;br/&gt;has it spent its allowance for now?"] --> F6
+    F6["6 · Creative fit&lt;br/&gt;is there a video of the right length?"] --> WIN
+    WIN["Winner: most daily budget remaining"] --> OUT["Filled &#10003;"]
+    F1 -.->|"expired"| NF["No-fill,&lt;br/&gt;with a named reason"]
+    F2 -.->|"targeting_mismatch"| NF
+    F3 -.->|"brand_safety_excluded"| NF
+    F4 -.->|"frequency_capped"| NF
+    F5 -.->|"pacing_throttled"| NF
+    F6 -.->|"no_creative_fit"| NF
+      </pre>
+
+      <div class="decision">
+        <span class="tag">Design rule</span>
+        <h4>Named reasons, never booleans</h4>
+        <p>A filter that returns true or false tells you nothing at 2am. Every rejection here carries a name: <code>pacing_throttled</code>, <code>targeting_mismatch</code>, <code>frequency_capped</code>.</p>
+        <p>Those names become a metric label, a log field, and a line in the API response. On Day 4 they become a Grafana chart where a fill-rate collapse is diagnosed by reading which band grew. On Day 18 they are the evidence an RCA agent cites.</p>
+      </div>
+
+      <p>Every response also carries a full <strong>trace</strong>: which campaigns lost and to which rule. Not for debugging &mdash; for the ops agents that arrive in Level 3.</p>
+
+      <h3>Two kinds of memory</h3>
+
+      <p>Frequency capping needs to know how many times a viewer has already seen an advert today. That count is written on every single impression, is per-viewer, and is worthless after midnight.</p>
+
+      <div class="decision">
+        <span class="tag">ADR-0003</span>
+        <h4>Redis holds the decision state, Postgres holds the truth</h4>
+        <p>A count that expires at midnight is a <em>counter with a timer</em>, not a permanent record. Redis holds those under keys that delete themselves after 48 hours. Postgres remains the system of record.</p>
+        <p class="trigger"><b>Trigger to revisit:</b> Day 4's event-service, when impressions become permanent and spend becomes billable.</p>
+      </div>
+
+      <p>Note the discipline here: the decision service reads campaigns through campaign-service's <strong>public API</strong>, never its database tables. That is precisely what keeps ADR-0002's Alembic trigger &mdash; "the first time a second service reads these tables" &mdash; deliberately unfired. Two ADRs, written a day apart, holding each other in place.</p>
+
+      <h3>Pure rules, injected state</h3>
+
+      <p>All six filters live in one file with <strong>no input or output of its own</strong>. It receives the data it needs and a clock. That's why the entire test suite runs with Docker switched off, in about five seconds.</p>
+
+      <div class="found">
+        <span class="tag">What reality found</span>
+        <h4>Two services, one global counter, instant collision</h4>
+        <p>Prometheus keeps one registry per running process. Both services defined a metric called <code>http_requests_total</code>, which was fine until the test suite imported both at once &mdash; then it crashed with a duplicate-metric error.</p>
+        <p>Fixed by defining the shared metrics once in <code>substrate/shared/observability.py</code>, with a <code>service</code> label separating them. The plan hadn't foreseen it; running the tests did.</p>
+      </div>
+
+      <p class="tight"><strong>Day 3 ended at 51 tests passing.</strong></p>
+    </div>
+  </section>
+
+  <!-- ---------------- DAY 4 ---------------- -->
+  <section class="day" id="day-4" data-day="04" data-name="EVENTS">
+    <div class="measure">
+      <p class="day-eyebrow">Day 04 · event-service + dashboards</p>
+      <h2>Counting things exactly once</h2>
+
+      <p>An advert played. That's an <em>impression</em>, and it costs the advertiser money. Someone clicked it. That's a <em>click</em>. Both must be recorded.</p>
+
+      <p>The hard part is not storing them. It's storing them <strong>exactly once</strong>.</p>
+
+      <h3>Why counting is hard</h3>
+
+      <p>Networks are unreliable. A player reports an impression, the response gets lost, the player retries. Now the same impression arrives twice. Count both and the advertiser is billed twice.</p>
+
+      <p>The obvious fix is to check first: <em>have I seen this before? No? Then save it.</em> That fix is broken, and the reason is worth understanding:</p>
+
+      <pre class="mermaid">
+sequenceDiagram
+    participant A as Report A
+    participant B as Report B, a retry
+    participant DB as Database
+    Note over A,B: same impression, same moment
+    A->>DB: seen event-123?
+    DB-->>A: no
+    B->>DB: seen event-123?
+    DB-->>B: no
+    A->>DB: save it
+    B->>DB: save it
+    Note over DB: counted twice
+      </pre>
+
+      <div class="decision">
+        <span class="tag">ADR-0004</span>
+        <h4>Let the database refuse it</h4>
+        <p>The <em>caller</em> generates the event's ID, and that ID is the table's primary key. A primary key is unique by definition, enforced by the database itself.</p>
+        <p>So both reports just try to save. One wins. The other is rejected by the database, and the service answers <code>200 duplicate</code>. There is no gap between checking and writing, because there is no check.</p>
+        <p>A duplicate returns success, not an error &mdash; from the caller's point of view the event <em>is</em> recorded. An error would train clients to retry harder at exactly the wrong moment.</p>
+      </div>
+
+      <p>Server-generated IDs were never an option: every retry would get a fresh ID and therefore become a new impression. The caller has to own the ID for any of this to work.</p>
+
+      <p>Totals are computed by scanning the events table on demand, not maintained in a separate running-total table. A running total is a second copy of the truth, and two copies drift the first time anyone corrects historical data. <strong>The trigger is written down:</strong> when that scan exceeds ~200ms under load.</p>
+
+      <h3>The trigger from yesterday fired</h3>
+
+      <p>ADR-0003 said Redis would hold spend until impressions became durable. Today they did. The decision <em>narrowed</em> rather than reversed:</p>
+
+      <pre class="mermaid">
+flowchart LR
+    R[("Redis&lt;br/&gt;what the pacer believed&lt;br/&gt;at decision time")]
+    P[("Postgres&lt;br/&gt;what was actually&lt;br/&gt;delivered")]
+    R -.->|"the gap between them"| G["reporting loss&lt;br/&gt;&#8212; a dashboard panel,&lt;br/&gt;not a bug"]
+    P -.-> G
+      </pre>
+
+      <p>They now disagree by design, and the disagreement is the interesting number.</p>
+
+      <h3>Dashboards that live in the repository</h3>
+
+      <p>Two Grafana dashboards, defined as files in version control rather than clicked together in a browser:</p>
+
+      <ul>
+        <li><strong>substrate-health</strong> &mdash; are services up, request rates, error ratios, p95 latency</li>
+        <li><strong>ads-delivery</strong> &mdash; fill rate, <em>why candidates lost</em>, events, click-through rate, spend</li>
+      </ul>
+
+      <p>The "why candidates lost" panel is the payoff for Day 3's named reasons. It's a stacked chart, one band per rejection reason. When fill rate collapses, you read the answer off whichever band grew.</p>
+
+      <p>A test guards them &mdash; every panel must have a query, point at the right data source, and graph a metric a service actually emits. It runs with Docker off.</p>
+
+      <div class="found">
+        <span class="tag">What reality found</span>
+        <h4>An unnamed data source, and every panel loads empty</h4>
+        <p>Grafana generates a random internal ID for its data connection at first startup. The dashboards referenced that ID. Restart, new ID, and every panel silently renders blank against a connection that no longer exists.</p>
+        <p>Fixed by pinning the ID explicitly &mdash; plus a test asserting the dashboards and the data source still agree. The plan missed it; the live stack surfaced it in thirty seconds.</p>
+      </div>
+
+      <p class="tight"><strong>Day 4 ended at 87 tests passing, four services scraped by Prometheus.</strong></p>
+    </div>
+  </section>
+
+  <!-- ---------------- DAY 5 ---------------- -->
+  <section class="day" id="day-5" data-day="05" data-name="BREAKING IT">
+    <div class="measure">
+      <p class="day-eyebrow">Day 05 · traffic-simulator + the gate</p>
+      <h2>Breaking it on purpose, for real</h2>
+
+      <p>Four services exist but nothing uses them. Day 5 builds a simulator that generates realistic viewers, requests adverts, and reports impressions and clicks back &mdash; continuously.</p>
+
+      <p>Then it breaks things. Five failure modes, switchable live over an API:</p>
+
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th class="mono">Scenario</th><th>What it does</th><th>What the dashboards show</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">steady</td><td>Normal traffic &mdash; and the rollback</td><td>flat, healthy, ~40% fill rate</td></tr>
+          <tr><td class="mono">error_burst</td><td>3 in 10 requests are malformed</td><td>error ratio climbs; 422s attributable to the caller</td></tr>
+          <tr><td class="mono">traffic_surge</td><td>Ten times the request rate</td><td>throughput and latency climb <em>together</em> &mdash; load, not fault</td></tr>
+          <tr><td class="mono">bad_config_deploy</td><td>Retargets every campaign to a dead country</td><td>fill rate falls off a cliff</td></tr>
+          <tr><td class="mono">budget_runaway</td><td>Inflates one campaign's daily budget</td><td>pacing stops throttling; one campaign takes everything</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="decision">
+        <span class="tag">ADR-0005 &mdash; the most important decision so far</span>
+        <h4>Real failures, never simulated ones</h4>
+        <p>No service contains a branch that knows it is being tested. There is no <code>CHAOS=true</code> flag, no debug endpoint, no fake data written into the metrics.</p>
+        <p>A bad config deploy genuinely sends <code>PATCH</code> requests that rewrite every campaign's targeting. The decision service then reads that configuration and correctly declines to serve. Nothing is faked &mdash; <strong>the code behaves perfectly against configuration that is wrong.</strong></p>
+        <p>Which is exactly what a real outage looks like, and exactly what Level 3's agents must be able to diagnose.</p>
+      </div>
+
+      <pre class="mermaid">
+flowchart LR
+    OP["POST /scenario&lt;br/&gt;bad_config_deploy"] --> SIM["traffic-simulator"]
+    SIM -->|"PATCH every campaign&lt;br/&gt;targeting &#8594; Antarctica"| CS["campaign-service"]
+    SIM -->|"keeps requesting ads"| ADS["ad-decision-service"]
+    ADS -->|"reads the changed config"| CS
+    ADS --> NF["targeting_mismatch&lt;br/&gt;fill rate 43% &#8594; 2%"]
+    NF --> PROM["Prometheus"]
+    PROM --> GRAF["Grafana&lt;br/&gt;the incident, visible"]
+    GRAF -.->|"Level 3"| RCA["ops agent finds&lt;br/&gt;the real cause"]
+      </pre>
+
+      <p>Because the damage is real, <strong>recovery has to be real too.</strong> The <code>steady</code> scenario doesn't set a flag back &mdash; it restores the original configuration. Which is precisely the remediation a Level 3 agent should recommend.</p>
+
+      <h3>The first published number</h3>
+
+      <p>The Level 0 quality gate: eleven automated checks against the running system. Five health endpoints, one metrics-collection check, and one per failure mode. It exits successfully only if all eleven pass, and it leaves the platform healthy.</p>
+
+      <p>Its decision logic is pure and separately tested; the live run only supplies numbers. That's what makes it trustworthy in both directions &mdash; it cannot pass with the system switched off, and it cannot fail because a test fixture drifted.</p>
+
+      <p><strong>Result: 11/11 &mdash; 100%.</strong> The first real number on the scoreboard.</p>
+
+      <div class="found">
+        <span class="tag">What reality found &mdash; three defects on day one</span>
+        <h4>A $2,147 ceiling nobody knew existed</h4>
+        <p>Budgets were stored in a 32-bit integer column, which caps at 2,147,483,647 micros &mdash; about <strong>$2,147 of daily budget</strong>. The runaway scenario tried to exceed it and Postgres refused.</p>
+        <p><strong>And it surfaced as a bare 500</strong>, violating the project's own Day 2 standard. Now a typed 422, with a handler ensuring no column's range error can ever return untyped again.</p>
+        <p><strong>The seeding guard was all-or-nothing.</strong> One leftover test campaign suppressed the entire seed set, and the simulator drove all its traffic at a single narrowly-targeted campaign &mdash; a 2% fill rate with 828 rejections. Seeding is now idempotent per campaign.</p>
+        <p><strong>And the gate failed itself on its first run.</strong> The traffic-surge check read its baseline from the response of the call that <em>caused</em> the surge, so it compared 20 requests/second against 20 requests/second. Caught, fixed, re-run clean &mdash; which is what a gate is for.</p>
+      </div>
+
+      <p class="tight"><strong>Level 0 complete: 141 tests, five services, real traffic, real incidents.</strong></p>
+    </div>
+  </section>
+
+  <!-- ---------------- DAY 6 ---------------- -->
+  <section class="day" id="day-6" data-day="06" data-name="THE CORPUS">
+    <div class="measure">
+      <p class="day-eyebrow">Day 06 · Document ingestion</p>
+      <h2>The substrate becomes something the AI knows</h2>
+
+      <p>Level 1 begins. Everything built so far &mdash; the source code, the five decision records, the daily logs, the runbook, the API contracts, the configuration &mdash; stops being the thing under construction and becomes <strong>the thing the AI knows about.</strong></p>
+
+      <p>This is the <em>context layer</em>: give an AI your team's actual accumulated knowledge so it answers from your decisions rather than from generic internet training.</p>
+
+      <pre class="mermaid">
+flowchart LR
+    RULES["14 ordered rules&lt;br/&gt;what belongs in the corpus"] --> DISC["discover&lt;br/&gt;63 files claimed"]
+    APPS["4 FastAPI app objects&lt;br/&gt;app.openapi()"] --> SPECS["4 API contracts&lt;br/&gt;generated, not scraped"]
+    DISC --> LOAD["load&lt;br/&gt;title · component · attributes"]
+    LOAD --> HASH["normalise line endings&lt;br/&gt;sha256 content hash"]
+    SPECS --> HASH
+    HASH --> UP["store&lt;br/&gt;added / updated / unchanged"]
+    UP --> PRUNE["prune&lt;br/&gt;orphans removed"]
+    PRUNE --> CORPUS["corpus.jsonl&lt;br/&gt;67 documents · 550 KiB"]
+      </pre>
+
+      <div class="decision">
+        <span class="tag">ADR-0006</span>
+        <h4>A reviewable list, not a crawl</h4>
+        <p>The lazy approach is to walk the folder and take everything not excluded. It works on day one and rots quietly: add a directory of scratch notes and the AI starts grounding its answers in them, with nobody reviewing a change that was never made.</p>
+        <p>Instead, what belongs is <strong>fourteen ordered rules in code</strong>. Adding a directory to the corpus is a code change with a test. "What do the agents know" becomes reviewable in a pull request.</p>
+        <p>The blank decision-record template is deliberately excluded. It's a form, not a decision &mdash; grounding an agent in it teaches it to answer with blanks.</p>
+      </div>
+
+      <h3>Contracts read from the code, not the network</h3>
+
+      <p>Each service publishes an API contract. The obvious way to collect them is to ask the running services. That would mean the corpus depends on which containers happen to be up, can't be rebuilt automatically, and quietly differs between machines.</p>
+
+      <p>Instead the contracts are generated by <strong>loading the code and asking it directly</strong>. Same bytes on every machine, including one with Docker switched off.</p>
+
+      <h3>Fingerprints, so nothing is done twice</h3>
+
+      <p>Every document gets a <strong>content hash</strong> &mdash; a fingerprint that changes if a single character changes. Re-run the pipeline on an unchanged repository and the answer is "67 unchanged, nothing written." That's what makes Day 7's embedding step affordable to repeat.</p>
+
+      <p>Every document also carries <strong>provenance</strong>: where it came from, what kind of thing it is, which part of the system it describes. The ID is the file path itself, so a citation is something a human can paste into an editor.</p>
+
+      <div class="found">
+        <span class="tag">What reality found</span>
+        <h4>Line endings would have broken everything, silently</h4>
+        <p>Windows ends lines with two invisible characters; Linux uses one. Git warned about the conversion on the very first commit.</p>
+        <p>Without normalising before fingerprinting, a file hashed on Windows and re-hashed on a Linux CI server would produce different fingerprints for <em>identical content</em>. Every run would report all 67 documents as changed, every embedding would be recomputed, and "unchanged" would mean nothing at all.</p>
+      </div>
+
+      <p class="tight"><strong>Day 6 ended at 201 tests, 67 documents in the corpus.</strong></p>
+    </div>
+  </section>
+
+  <!-- ---------------- DAY 7 ---------------- -->
+  <section class="day" id="day-7" data-day="07" data-name="MEANING">
+    <div class="measure">
+      <p class="day-eyebrow">Day 07 · Chunking, embeddings, vectors</p>
+      <h2>Teaching it to find things by meaning</h2>
+
+      <p>A whole document is the wrong unit. One API contract is 851 lines &mdash; handing an agent all of it to answer one question is useless. Two problems to solve: <strong>cut documents into useful pieces</strong>, and <strong>make those pieces findable by meaning rather than keyword</strong>.</p>
+
+      <h3>Cutting where the content already has seams</h3>
+
+      <p>The naive approach cuts every 2,000 characters, which slices functions in half. Instead each kind of document is cut where it already has natural boundaries:</p>
+
+      <pre class="mermaid">
+flowchart TB
+    DOC["A document"] --> R{"What kind?"}
+    R -->|"Python"| PY["Split at functions and classes&lt;br/&gt;anchor: the symbol name"]
+    R -->|"Markdown"| MD["Split at headings&lt;br/&gt;anchor: the heading path"]
+    R -->|"API contract"| OA["Split per endpoint&lt;br/&gt;anchor: POST /campaigns"]
+    R -->|"anything else"| WIN["Fixed window&lt;br/&gt;anchor: none"]
+    PY & MD & OA & WIN --> CAP["Cap oversized pieces&lt;br/&gt;keeping the anchor"]
+      </pre>
+
+      <p>Every piece keeps an <strong>anchor</strong> &mdash; the name of the thing it is. <code>ADR-0005 &#8250; Alternatives considered</code>. <code>POST /ad-request</code>. A piece that cannot name itself can be returned but not defended.</p>
+
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th class="mono">Approach</th><th class="mono">Pieces</th><th class="mono">Median size</th><th class="mono">Can name itself</th></tr></thead>
+        <tbody>
+          <tr><td class="mono"><strong>structure-aware</strong></td><td class="mono">585</td><td class="mono">854 chars</td><td class="mono good"><strong>97%</strong></td></tr>
+          <tr><td class="mono">cut every 2,000 chars</td><td class="mono">349</td><td class="mono">1,960 chars</td><td class="mono bad">0%</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3>What an embedding actually is</h3>
+
+      <p>An <strong>embedding</strong> turns text into a long list of numbers positioned so that similar meanings land near each other. "Frequency capping" and "how often a viewer sees an advert" share no words &mdash; but a good embedding puts them close together. That's how you search by meaning.</p>
+
+      <p>Different models do this with different quality. So rather than picking one, BELLWETHER runs four behind a single interchangeable interface.</p>
+
+      <div class="decision">
+        <span class="tag">ADR-0007 &mdash; the original plan was backwards</span>
+        <h4>Hosted models by default, local for free iteration</h4>
+        <p>The Day 0 plan said run a model locally to save money. Measuring the corpus inverted that entirely.</p>
+        <p>The whole corpus is ~149,000 tokens &mdash; about <strong>two cents</strong> to embed with the best model available. Meanwhile running locally means installing PyTorch: 2.5&nbsp;GB on disk and a resident process competing for memory with Docker on a 16&nbsp;GB laptop with no graphics card.</p>
+        <p>The <em>best</em> option turned out to be the <em>lightest</em> one locally, because the computation happens on someone else's hardware. The premise flipped the moment anyone measured.</p>
+        <p class="trigger"><b>Trigger to revisit:</b> a corpus past a few million tokens, where per-run cost stops being a rounding error.</p>
+      </div>
+
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th class="mono">Engine</th><th class="mono">Dimensions</th><th class="mono">Cost</th><th class="mono">Time</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">gemini-embedding-001</td><td class="mono">3072</td><td class="mono">$0.0223</td><td class="mono">10.1s</td><td>quality tier</td></tr>
+          <tr><td class="mono">voyage-3.5</td><td class="mono">1024</td><td class="mono">&mdash;</td><td class="mono">&mdash;</td><td>written, tested, not yet run</td></tr>
+          <tr><td class="mono">potion-retrieval-32M</td><td class="mono">512</td><td class="mono good">free</td><td class="mono">2.1s</td><td>local, offline, no GPU</td></tr>
+          <tr><td class="mono">hashing</td><td class="mono">256</td><td class="mono good">free</td><td class="mono">0.2s</td><td>the CI engine &mdash; no dependencies</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="decision">
+        <span class="tag">ADR-0008</span>
+        <h4>One point per piece, one vector per engine</h4>
+        <p>Comparing engines is only meaningful if each one sees <strong>identical input</strong>. The vector database stores each text piece as a single record carrying <em>all four engines' vectors at once</em>, alongside one shared set of provenance.</p>
+        <p>Switching engines becomes a query parameter. Fairness stops being a discipline someone has to remember and becomes a property of the storage layout.</p>
+      </div>
+
+      <h3>What two cents buys</h3>
+
+      <p>Asked: <em>"how often can the same viewer be shown one advert?"</em> &mdash; a question containing none of the words <em>frequency</em>, <em>cap</em>, <em>member</em>, or <em>impression</em>:</p>
+
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th class="mono">Engine</th><th class="mono">Score</th><th>Best match</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">gemini</td><td class="mono">0.765</td><td class="good">Substrate gaps &#8250; SG-04 &#8250; Multiple frequency-cap windows</td></tr>
+          <tr><td class="mono">potion</td><td class="mono">0.428</td><td>ad_decision_service.main.decide</td></tr>
+          <tr><td class="mono">hashing</td><td class="mono">0.328</td><td class="bad">an unrelated plan section &mdash; noise, as designed</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>Gemini understood the question. The local model found the right neighbourhood. The keyword-only baseline found nothing, because <em>no word in the question appears in the answer.</em> That gap is the entire argument for paying for embeddings &mdash; measured here, not quoted from a vendor.</p>
+
+      <div class="found">
+        <span class="tag">What reality found &mdash; the most dangerous bug yet</span>
+        <h4>The database silently destroyed data, and every test passed</h4>
+        <p>Writing one engine's vector to a record <em>replaced the whole record</em>. So storing Voyage's vector silently deleted Gemini's.</p>
+        <p>Every unit test passed &mdash; because the test double faithfully reproduced the wrong mental model. The comparison would have rendered a beautiful chart built on destroyed data.</p>
+        <p>It was caught by pointing the code at a real running database and asking one question: is the first vector still there? It was not.</p>
+        <p>Two more: a text file written by PowerShell carried an invisible marker that turned <code>VOYAGE_API_KEY</code> into an unrecognisable name &mdash; presenting as a missing key while the file plainly contained one. And a verification command was piped through another program, which swallowed its failure signal, so nine type errors were committed while appearing green.</p>
+      </div>
+
+      <p class="tight"><strong>Day 7 ended at 289 tests, 585 pieces, three engines measured.</strong></p>
+    </div>
+  </section>
+
+  <!-- ---------------- CLOSING ---------------- -->
+  <section class="close" id="now" data-day="NOW" data-name="WHERE IT STANDS">
+    <div class="measure">
+      <p class="day-eyebrow">Where it stands</p>
+      <h2>Eight days in</h2>
+
+      <p>There is a working ads platform: five services, real traffic, real dashboards, and incidents that can be caused on demand and are genuinely real when they happen. On top of it, the beginnings of an AI layer that has read the entire project and can find things in it by meaning.</p>
+
+      <pre class="mermaid">
+flowchart TB
+    subgraph L1["LEVEL 1 &#8212; context layer (in progress)"]
+        COR["67 documents&lt;br/&gt;585 searchable pieces"]
+        VEC["Vector store&lt;br/&gt;4 engines, 1 record each"]
+    end
+    subgraph L0["LEVEL 0 &#8212; the substrate (complete, 11/11)"]
+        CS["campaign-service&lt;br/&gt;:8001"]
+        ADS["ad-decision-service&lt;br/&gt;:8002"]
+        EV["event-service&lt;br/&gt;:8003"]
+        SIM["traffic-simulator&lt;br/&gt;:8004"]
+        OBS["Prometheus + Grafana"]
+    end
+    SIM --> ADS --> CS
+    SIM --> EV
+    L0 -->|"code · docs · contracts · config"| COR
+    COR --> VEC
+    VEC -.->|"Days 8-10"| NEXT["hybrid search&lt;br/&gt;knowledge graph&lt;br/&gt;MCP server"]
+    NEXT -.->|"Levels 2-4"| AG["dev agents · ops agents&lt;br/&gt;orchestration"]
+      </pre>
+
+      <h3>The pattern worth noticing</h3>
+
+      <p>Read the eight days back to back and the same shape repeats. A decision gets made and written down <em>with the condition that would reverse it</em>. Then reality tests it &mdash; and in every single case, running the real thing found something the plan had not.</p>
+
+      <ul>
+        <li>A metric collision that only appeared when two services loaded together</li>
+        <li>A dashboard connection ID that changed on restart</li>
+        <li>A $2,147 budget ceiling nobody knew existed</li>
+        <li>A quality gate that measured itself and passed</li>
+        <li>Line endings that would have made every fingerprint meaningless</li>
+        <li>A database that quietly deleted data while every test agreed it was fine</li>
+      </ul>
+
+      <p>None of these were found by careful thinking. All of them were found by running the real thing against real conditions and looking at what happened.</p>
+
+      <p>Which is, in the end, the entire argument of the project. <strong>An AI that writes code fast is only useful if something can prove the code is right.</strong> That proof cannot come from a fixture, a mock, or a demo that worked once. It has to come from the real system, misbehaving in real ways, measured by numbers published whether they flatter or not.</p>
+
+      <p>Twenty-two days remain.</p>
+    </div>
+  </section>
+
+  </main>
+</div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p><b>BELLWETHER</b> · DAY 07 / 30 · BUILT IN PUBLIC · <a href="index.html">back to the build log</a></p>
+    <p>An independent open-source project, not affiliated with or endorsed by Netflix.</p>
+  </div>
+</footer>
+
+<script>
+  // The spine: one dot per day, and a playhead that tracks reading progress.
+  // Same device as the day-tracker strip on the index page.
+  (function () {
+    var sections = Array.prototype.slice.call(document.querySelectorAll("[data-day]"));
+    var marks = document.getElementById("spineMarks");
+    var fill = document.getElementById("spineFill");
+    var head = document.getElementById("spineHead");
+    if (!sections.length || !marks) return;
+
+    var nodes = sections.map(function (section) {
+      var link = document.createElement("a");
+      link.className = "spine-mark";
+      link.href = "#" + section.id;
+      link.innerHTML =
+        '<span class="spine-dot"></span><span class="spine-name">' +
+        section.dataset.day + " " + section.dataset.name + "</span>";
+      marks.appendChild(link);
+      return link;
+    });
+
+    // Dots sit at each section's true position in the document, not at even
+    // intervals — otherwise the playhead drifts away from the dot you are
+    // actually reading, and the rail quietly lies about where you are.
+    function place() {
+      var scrollable = document.documentElement.scrollHeight - window.innerHeight;
+      if (scrollable <= 0) return;
+      sections.forEach(function (section, index) {
+        var offset = section.getBoundingClientRect().top + window.scrollY;
+        var ratio = Math.min(Math.max(offset / scrollable, 0), 1);
+        nodes[index].style.top = (ratio * 100) + "%";
+      });
+    }
+
+    var ticking = false;
+    function update() {
+      ticking = false;
+      var scrollable = document.documentElement.scrollHeight - window.innerHeight;
+      var progress = scrollable > 0 ? Math.min(Math.max(window.scrollY / scrollable, 0), 1) : 0;
+      fill.style.height = (progress * 100) + "%";
+      head.style.top = (progress * 100) + "%";
+
+      // Highlight the section whose top has most recently passed the fold.
+      var active = 0;
+      sections.forEach(function (section, index) {
+        if (section.getBoundingClientRect().top <= window.innerHeight * 0.4) active = index;
+      });
+      nodes.forEach(function (node, index) {
+        node.classList.toggle("on", index <= active);
+      });
+    }
+
+    function refresh() { place(); update(); }
+
+    window.addEventListener("scroll", function () {
+      if (!ticking) { window.requestAnimationFrame(update); ticking = true; }
+    }, { passive: true });
+    window.addEventListener("resize", refresh);
+    // Mermaid renders asynchronously and changes the page height underneath us,
+    // so the dots have to be re-placed once the diagrams have settled.
+    window.addEventListener("load", refresh);
+    if (window.ResizeObserver) {
+      new ResizeObserver(refresh).observe(document.body);
+    }
+    refresh();
+  })();
+</script>
+
+</body>
+</html>
