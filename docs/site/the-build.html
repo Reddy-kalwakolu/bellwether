@@ -261,43 +261,126 @@
       <p class="day-eyebrow">Day 00 · The problem</p>
       <h3 class="hd">A job posting, and a tension worth taking seriously</h3>
 
-      <p>It starts with a Netflix job posting &mdash; requisition AJRT30201, Staff AI Engineer on the Ads Platform team. Strip out the boilerplate and it is describing one specific, current problem:</p>
+      <p>It starts with a Netflix job posting &mdash; requisition AJRT30201, Staff AI Engineer on the Ads Platform team. Strip out the boilerplate and it describes one specific, current problem:</p>
 
       <p><strong>Engineering teams can now produce code far faster than they can verify it.</strong></p>
 
-      <p>AI writes code quickly. It also writes code that looks completely reasonable and is subtly wrong &mdash; an off-by-one, a missed edge case, a race condition &mdash; and nobody notices until production does. Speed went up. Confidence did not.</p>
+      <p>That sentence is easy to nod along to and easy to underestimate. It is worth seeing what it actually means.</p>
 
-      <p>The posting asks for someone who can make a team faster <em>without</em> accumulating that debt. It lists five capabilities:</p>
+      <h4 class="sub">What "plausible but wrong" actually looks like</h4>
 
-      <ol>
-        <li><strong>A centralised context layer</strong> &mdash; so agents answer from the team's actual knowledge, not generic training data</li>
-        <li><strong>Development agents</strong> &mdash; code generation, test writing, pull-request review, deployment checks</li>
-        <li><strong>Operations agents</strong> &mdash; incident triage, correlating logs with metrics, root-cause analysis</li>
-        <li><strong>Multi-agent orchestration</strong> &mdash; several agents coordinating, with humans approving at the right moments</li>
-        <li><strong>Evaluation frameworks</strong> &mdash; proving any of it works</li>
-      </ol>
+      <p>Here is a function from this project's own domain. An AI could write it in a second, a reviewer could approve it in five, and it is wrong.</p>
 
-      <p>Item five is where nearly every portfolio project quietly gives up.</p>
+      <pre class="code"><span class="c"># Has this campaign spent its daily budget?</span>
+<span class="k">def</span> within_budget(campaign, spent_micros):
+    <span class="k">return</span> spent_micros &lt; campaign.daily_budget_micros</pre>
 
-      <h4 class="sub">Why an agent demo proves nothing</h4>
+      <p>Read it again. It compiles. It passes a strict type check. It reads exactly like the comment above it. A test asserting <em>"a campaign that has spent nothing is within budget"</em> passes. So does <em>"a campaign that has spent everything is not."</em></p>
 
-      <p>Anyone can find a prompt that produces an impressive result once, on camera, with a friendly example. That demonstrates the example was friendly. It says nothing about what happens on the two hundredth real input.</p>
+      <p>It is still wrong: <strong>it asks whether the campaign has already overspent, not whether serving this advert would cause it to overspend.</strong></p>
+
+      <pre class="code">daily_budget   = 10,000,000   <span class="c"># $10.00</span>
+already_spent  =  9,999,000   <span class="c"># $9.999</span>
+this_ad_costs  =    500,000   <span class="c"># $0.50</span>
+
+within_budget(...)  &#8594; <span class="g">True</span>     <span class="c"># because 9,999,000 &lt; 10,000,000</span>
+                             <span class="c"># so it serves, and the day ends at 10,499,000</span>
+
+<span class="a">&#8594; every campaign overspends its daily cap, every day, forever.</span></pre>
+
+      <p>The correct version is one clause longer:</p>
+
+      <pre class="code"><span class="k">return</span> spent_micros + price_micros &lt;= campaign.daily_budget_micros</pre>
+
+      <p>Nobody is ever paged for this. There is no crash, no error rate, no red panel on a dashboard. Advertisers are quietly billed slightly more than they agreed to, for months. It is found by an auditor, not by an alert.</p>
+
+      <div class="aside">
+        <span class="tag">Why this class of bug is the whole problem</span>
+        <p>Code that is <em>obviously</em> broken is cheap. It fails loudly and immediately, and someone fixes it before lunch.</p>
+        <p>Code that is <em>plausibly</em> broken is expensive. It survives review because it reads correctly. It survives testing because the tests were written from the same misunderstanding that produced it. And AI generates it at a rate no review process was designed to absorb.</p>
+        <p>Speed went up. Confidence did not. That gap is what the posting is actually about.</p>
+      </div>
+
+      <h4 class="sub">The five capabilities the posting asks for</h4>
+
+      <p>They are not independent. Each depends on the one before it &mdash; which is why the build order in this project is not negotiable.</p>
+
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th class="mono">#</th><th>Capability</th><th>What it means concretely</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">1</td><td><strong>Centralised context layer</strong></td><td>Agents answer from <em>this team's</em> code and decisions, not generic training data. Ask why the project uses Compose and it should quote ADR-0001 and name its trigger &mdash; not recite blog posts.</td></tr>
+          <tr><td class="mono">2</td><td><strong>Dev lifecycle agents</strong></td><td>Generate code, generate tests, review pull requests against written standards, validate a deployment after it lands.</td></tr>
+          <tr><td class="mono">3</td><td><strong>Ops agents</strong></td><td>Read logs and metrics during an incident, correlate across services, propose a root cause <em>with cited evidence</em>, suggest the remediation.</td></tr>
+          <tr><td class="mono">4</td><td><strong>Multi-agent orchestration</strong></td><td>Several agents on one task at once &mdash; coordinating, disagreeing, and stopping to ask a human at the moments that matter.</td></tr>
+          <tr><td class="mono">5</td><td><strong>Evaluation frameworks</strong></td><td>Proving any of the above works. Numbers, not impressions.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>Item five is where nearly every portfolio project quietly gives up &mdash; and it is the only one that makes the other four trustworthy.</p>
+
+      <h4 class="sub">A demo and an evaluation are not the same thing</h4>
+
+      <p>The words get used interchangeably. They should not be.</p>
+
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th class="mono">A demo</th><th class="mono">An evaluation</th></tr></thead>
+        <tbody>
+          <tr><td>One input, chosen by the person demoing</td><td>A fixed dataset, written before the agent existed</td></tr>
+          <tr><td>Run until it looks good, then recorded</td><td>Run once per change, results kept whatever they are</td></tr>
+          <tr><td>Success is "the audience was impressed"</td><td>Success is a number with a target beside it</td></tr>
+          <tr><td>Failures are re-shot</td><td class="good">Failures are published</td></tr>
+          <tr><td>Proves the example was friendly</td><td>Proves something about the agent</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>Concretely, for the pull-request reviewer arriving on Day 13, the evaluation is this:</p>
+
+      <pre class="code"><span class="c"># Take working code. Plant 10 realistic bugs, one per branch.</span>
+<span class="c"># Each is the kind a tired human writes at 5pm on a Friday.</span>
+
+  1. off-by-one in a frequency cap         <span class="c"># &lt; where it should be &lt;=</span>
+  2. budget check ignores the pending ad   <span class="c"># the bug shown above</span>
+  3. missing guard when targeting is empty
+  ...
+
+<span class="c"># Ask the reviewer agent to review each branch, cold, with no hint</span>
+<span class="c"># that a bug exists. Score = caught, minus false alarms invented.</span>
+
+<span class="a">catch rate: 7/10 &#8212; published, including the run that scored 4</span></pre>
+
+      <p>That number can go down when the code changes. That is precisely why it is worth having.</p>
 
       <div class="decision">
         <span class="tag">The bet this whole project makes</span>
         <h5>Every capability ships with a number</h5>
         <p>Not <em>"here is an agent that reviews pull requests."</em></p>
         <p>Instead: <em>"here is an agent that caught 7 of 10 deliberately planted bugs, here is the evaluation that measured it, here is the run where it only scored 4, and here is what changed after."</em></p>
-        <p>That is harder to build and far harder to fake. It is also the only version of this project that a Staff engineer would find interesting rather than familiar.</p>
+        <p>Harder to build, far harder to fake, and the only version of this project a Staff engineer would find interesting rather than familiar.</p>
       </div>
 
       <h4 class="sub">The consequence: build the boring half first</h4>
 
       <p>There is a practical problem with operations agents. To show one diagnosing an outage, you need an outage.</p>
 
-      <p>Most demos fake it &mdash; a JSON file of invented log lines, a chart drawn from made-up numbers, a script that prints "ALERT" on a timer. An agent tested against a fake failure <strong>can only ever find the fake.</strong> The evaluation measures the fixture, not the agent.</p>
+      <p>Most demos fake it. In code, the fake usually looks about like this:</p>
 
-      <p>So BELLWETHER is deliberately two systems, and the unglamorous one gets built first.</p>
+      <pre class="code"><span class="c"># The staged incident</span>
+<span class="k">if</span> os.environ.get(<span class="g">"CHAOS"</span>) == <span class="g">"true"</span>:
+    <span class="k">return</span> {<span class="a">"error"</span>: <span class="g">"database unavailable"</span>}</pre>
+
+      <p>Now point an agent at that and ask for a root cause. What is there to find? The only true answer is <em>"an environment variable is set."</em> The agent has learned nothing about databases, nothing about this system, and nothing that transfers to a real incident.</p>
+
+      <p><strong>An agent tested against a fake failure can only ever find the fake.</strong> The evaluation measures the fixture, not the agent.</p>
+
+      <p>Compare what happens on Day 5 here. A simulator sends genuine <code>PATCH</code> requests rewriting every campaign's targeting to a country with no viewers. The decision service reads that configuration and correctly declines to serve. Fill rate drops from <strong>43% to 2%</strong>.</p>
+
+      <p>Every part of that is real. The cause is a row in a table an agent can query. The symptom is a metric an agent can chart. The fix &mdash; restore the previous targeting &mdash; is a real operation with real consequences. <em>That</em> is something worth evaluating an agent against.</p>
+
+      <h4 class="sub">So the project is two systems, and the unglamorous one goes first</h4>
 
       <pre class="mermaid">
 flowchart TB
@@ -320,7 +403,34 @@ flowchart TB
     EVAL -.->|"publishes a score for"| BW
       </pre>
 
-      <p>The <strong>substrate</strong> is a miniature version of the kind of system an ads team actually runs. It exists purely so the AI layer has something genuine to operate on. When an agent later diagnoses a broken deployment, the deployment will really be broken, for a reason that is really sitting in a database.</p>
+      <h4 class="sub">Why an ads platform specifically</h4>
+
+      <p>The substrate could have been anything. Ad serving was chosen for four reasons, none of them "it sounded impressive":</p>
+
+      <ul>
+        <li><strong>It is the target team's actual domain.</strong> Using the posting's own vocabulary &mdash; targeting, frequency capping, brand safety, pacing &mdash; in code, logs and docs means every conversation lands in the right register.</li>
+        <li><strong>Its failures are configuration failures.</strong> The realistic outage in ad tech is not a severed cable, it is a bad targeting deploy. Those have a cause sitting in a database &mdash; exactly the shape an RCA agent can be honestly evaluated against.</li>
+        <li><strong>It produces genuine telemetry under load.</strong> Fill rates, rejection reasons, latency percentiles, spend. Real numbers that move for real reasons.</li>
+        <li><strong>It is small enough to finish.</strong> Four services, one machine. The substrate is scaffolding, and scaffolding that takes three weeks has eaten the project.</li>
+      </ul>
+
+      <h4 class="sub">The thirty days, in six levels</h4>
+
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th class="mono">Level</th><th class="mono">Days</th><th>What gets built</th><th class="mono">Its gate</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td class="mono">1&ndash;5</td><td>The substrate &mdash; four services, observability, injectable failures</td><td class="mono good">11/11 &#10003;</td></tr>
+          <tr><td class="mono">1</td><td class="mono">6&ndash;10</td><td>Context layer &mdash; ingestion, chunking, retrieval, knowledge graph</td><td class="mono">relevance &gt;85%</td></tr>
+          <tr><td class="mono">2</td><td class="mono">11&ndash;15</td><td>Dev agents &mdash; code gen, test gen, PR review, deploy validation</td><td class="mono">catch rate published</td></tr>
+          <tr><td class="mono">3</td><td class="mono">16&ndash;20</td><td>Ops agents &mdash; log intelligence, triage, RCA, guided resolution</td><td class="mono">RCA correct &gt;80%</td></tr>
+          <tr><td class="mono">4</td><td class="mono">21&ndash;25</td><td>Orchestration &mdash; parallel agents, conflict resolution, human gates</td><td class="mono">3/3 complex tasks</td></tr>
+          <tr><td class="mono">5</td><td class="mono">26&ndash;30</td><td>Platform &mdash; dev environment, CI gates, eval dashboard, launch</td><td class="mono">&lt;10 min setup</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>Every target was written <strong>before</strong> its level was built. That ordering matters more than it looks: a target invented after seeing the result is not a target, it is a description.</p>
 
       <p><strong>Days 1&ndash;5 build the substrate. Day 6 onward is the AI layer.</strong></p>
     </div>
@@ -332,7 +442,7 @@ flowchart TB
       <p class="day-eyebrow">The method</p>
       <h3 class="hd">How a single day actually runs</h3>
 
-      <p>The same loop runs every day. It is not ceremony &mdash; each step exists because skipping it caused a specific, identifiable problem.</p>
+      <p>The same loop runs every day. None of it is ceremony &mdash; each step exists because skipping it caused a specific, traceable problem, and most of those problems are named later on this page.</p>
 
       <pre class="mermaid">
 flowchart LR
@@ -345,88 +455,262 @@ flowchart LR
     F -->|"tomorrow"| A
       </pre>
 
-      <h4 class="sub">1 &middot; The plan is a file in the repository</h4>
+      <h4 class="sub">Step 1 &middot; The plan is a file in the repository</h4>
 
-      <p>Before code, the day gets a written plan committed to <code>docs/superpowers/plans/</code>. Not a to-do list &mdash; a document naming every file that will be created, the exact function signatures, and the tests that will be written first.</p>
+      <p>Before any code, the day gets a written plan committed to <code>docs/superpowers/plans/</code>. Not a to-do list. A document naming every file that will exist, the exact function signatures, and the tests that will be written first.</p>
 
-      <p>Two reasons. It forces the design to be thought through while changing it is still free. And it means a fresh session &mdash; or a different person &mdash; can pick the work up without re-deriving anything.</p>
+      <p>Here is the shape of a real task from the Day 7 plan:</p>
 
-      <h4 class="sub">2 &middot; Test first, and watch it fail</h4>
+      <pre class="code"><span class="k">### Task 4: The embedder protocol, cost tracking, and the hashing engine</span>
 
-      <p>Every task follows the same five steps: <strong>write the failing test → run it and confirm it fails for the right reason → write the minimum code to pass → run it again → commit.</strong></p>
+<span class="a">Files:</span> create <span class="g">embedders/base.py</span>, <span class="g">embedders/hashing.py</span> + tests
 
-      <p>The step people skip is the second one. Running the test <em>before</em> the code exists proves the test can actually fail. A test that was never seen failing might be asserting nothing at all &mdash; and a test that always passes is worse than no test, because it produces confidence without evidence.</p>
+<span class="a">Produces:</span>
+  UsageRecord   &#8212; engine, texts, tokens, cost_usd, latency_ms
+  EngineSpec    &#8212; name, label, dimensions, hosted, cost_per_million_tokens
+  Embedder      &#8212; Protocol: spec, available() -&gt; (bool, str), embed(texts)
+
+<span class="a">Tests:</span> determinism; unit norm; shared vocabulary scores higher than
+       unrelated text; cost_usd == 0; registry lists all four names
+
+<span class="c">- [ ] Write failing tests &#8594; run &#8594; implement &#8594; run &#8594; commit</span></pre>
+
+      <p>Two reasons this exists. It forces the design to be thought through while changing it is still free &mdash; renaming a function in a plan costs nothing, renaming it across nine files costs an hour. And it means a fresh session, or a different person, can pick the work up without re-deriving anything.</p>
+
+      <p>The plans are also, deliberately, <em>part of the corpus</em>. From Day 6 onward the AI layer can read how each day was planned, including what the plan got wrong.</p>
+
+      <h4 class="sub">Step 2 &middot; Test first &mdash; and watch it fail</h4>
+
+      <p>Every task follows five steps. Here is a real one, start to finish.</p>
+
+      <p><strong>2a. Write the test before the code exists.</strong> This is from Day 4's event-service &mdash; the test that pins down idempotent counting:</p>
+
+      <pre class="code"><span class="k">def</span> test_the_same_event_reported_twice_is_counted_once():
+    first  = post_event(event_id=<span class="g">"evt-123"</span>, event_type=<span class="g">"impression"</span>)
+    second = post_event(event_id=<span class="g">"evt-123"</span>, event_type=<span class="g">"impression"</span>)
+
+    <span class="k">assert</span> first.status_code  == 201
+    <span class="k">assert</span> first.json()[<span class="g">"status"</span>]  == <span class="g">"recorded"</span>
+    <span class="k">assert</span> second.status_code == 200
+    <span class="k">assert</span> second.json()[<span class="g">"status"</span>] == <span class="g">"duplicate"</span>
+
+    <span class="c"># the point of the whole day</span>
+    <span class="k">assert</span> get_delivery()[<span class="g">"impressions"</span>] == 1</pre>
+
+      <p><strong>2b. Run it, and confirm it fails for the right reason.</strong></p>
+
+      <pre class="code">$ uv run pytest tests/substrate/event_service -q
+
+E   ModuleNotFoundError: No module named <span class="g">'substrate.event_service.main'</span>
+<span class="a">1 error during collection</span></pre>
+
+      <p>This is the step almost everyone skips, and it is the one that matters most. Running the test <em>before</em> the code exists proves the test is capable of failing.</p>
+
+      <p>A test that has never been seen failing might be asserting nothing at all &mdash; a typo in a fixture name, an assertion inside a branch that never runs, a comparison that is always true. <strong>A test that always passes is worse than no test</strong>, because it produces confidence without evidence, and it will still be passing years later while the behaviour it claims to protect has quietly rotted.</p>
+
+      <p><strong>2c. Write the minimum code to pass.</strong> Not the elegant version, not the general version &mdash; the one that makes this test go green.</p>
+
+      <p><strong>2d. Run it again.</strong></p>
+
+      <pre class="code">$ uv run pytest tests/substrate/event_service -q
+<span class="g">............ 12 passed in 0.61s</span></pre>
+
+      <p><strong>2e. Commit.</strong> Then the next task starts from a green repository, which means any breakage in the next hour was introduced in the next hour.</p>
 
       <div class="plant">
         <span class="tag">Planted here &#8212; pays off on Day 11</span>
-        <p>This discipline is not only for the human. From Level 2, agents generate code into this repository. The tests and the gates below are the <strong>fence</strong> that generated code has to clear. Build the fence before you need it, and "the AI wrote it" stops being a reason to lower the bar.</p>
+        <p>This discipline is not only for the human. From Level 2, agents generate code directly into this repository.</p>
+        <p>The tests and the gates below become the <strong>fence</strong> that generated code has to clear before it lands. Build the fence before you need it, and "the AI wrote it" stops being a reason to lower the bar. Build it after, and there is no bar to lower it from.</p>
       </div>
 
-      <h4 class="sub">3 &middot; Four gates, run separately, never piped</h4>
+      <h4 class="sub">Step 3 &middot; Four gates, run separately, never piped</h4>
 
       <div class="tbl-scroll">
       <table class="tbl">
-        <thead><tr><th class="mono">Gate</th><th>What it checks</th><th>What it prevents</th></tr></thead>
+        <thead><tr><th class="mono">Gate</th><th>What it checks</th><th>A real thing it caught</th></tr></thead>
         <tbody>
-          <tr><td class="mono"><strong>ruff check</strong></td><td>Unused imports, risky patterns, style drift</td><td>Slow rot, and arguments about formatting</td></tr>
-          <tr><td class="mono"><strong>ruff format</strong></td><td>Every file laid out identically</td><td>Diffs full of whitespace instead of meaning</td></tr>
-          <tr><td class="mono"><strong>mypy --strict</strong></td><td>Every value is the type it claims to be</td><td>A whole class of bug, before the code runs</td></tr>
-          <tr><td class="mono"><strong>pytest</strong></td><td>The behaviour still holds</td><td>Silent regressions</td></tr>
+          <tr><td class="mono"><strong>ruff check</strong></td><td>Unused imports, risky patterns, style drift</td><td>A helper typed <code>Any</code> instead of a concrete dict, three separate days</td></tr>
+          <tr><td class="mono"><strong>ruff format</strong></td><td>Every file laid out identically</td><td>Keeps diffs about meaning rather than whitespace</td></tr>
+          <tr><td class="mono"><strong>mypy --strict</strong></td><td>Every value is the type it claims</td><td>A function returning an untyped value from <code>json.loads</code></td></tr>
+          <tr><td class="mono"><strong>pytest</strong></td><td>The behaviour still holds</td><td>A metric collision that only appears when two services load together</td></tr>
         </tbody>
       </table>
       </div>
 
-      <p>They are run as four separate commands, on four separate lines. This sounds pedantic until you see what happens otherwise:</p>
+      <p>They are run as four separate commands on four separate lines. This sounds pedantic until you see what happens otherwise:</p>
 
-      <pre class="code"><span class="c"># WRONG &#8212; this reports success even when mypy fails.</span>
-<span class="c"># The exit code that survives is tail's, and tail always succeeds.</span>
+      <pre class="code"><span class="c"># WRONG &#8212; reports success even when mypy fails.</span>
+<span class="c"># In a pipeline the surviving exit code is tail's, and tail always succeeds.</span>
 uv run mypy tests substrate bellwether <span class="k">|</span> tail -2 <span class="k">&&</span> git commit
 
-<span class="c"># RIGHT &#8212; each gate's own exit code is visible.</span>
-uv run mypy tests substrate platform bellwether</pre>
-      <p class="caption">This exact mistake shipped nine type errors on Day 7, in a project whose own Day 4 notes warn about it.</p>
+<span class="c"># RIGHT &#8212; each gate's own exit code is visible and fatal.</span>
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy tests substrate platform bellwether
+uv run pytest</pre>
 
-      <h4 class="sub">4 &middot; Tests must pass with everything switched off</h4>
+      <p class="caption">This exact mistake shipped nine type errors on Day 7 &mdash; in a project whose own Day 4 notes warn about it, written by the person who wrote the warning.</p>
 
-      <p>A hard rule: <strong>the entire test suite passes with Docker stopped and no API keys set.</strong> 289 tests, about six seconds.</p>
+      <h4 class="sub">Step 4 &middot; The tests must pass with everything switched off</h4>
 
-      <p>This is enforced by design, not willpower. Business logic never performs input or output of its own &mdash; it receives the things it needs as arguments. Database access, HTTP calls and clocks are all passed in, so tests supply simple stand-ins.</p>
+      <p>A hard rule: <strong>the entire suite passes with Docker stopped and no API keys set.</strong> 289 tests, about six seconds.</p>
 
-      <pre class="code"><span class="c"># The decision logic takes its dependencies rather than reaching for them.</span>
-<span class="c"># In production these are Redis and a real clock. In tests they are a dict.</span>
+      <p>This is enforced by design rather than willpower. Business logic never reaches out for what it needs &mdash; it is handed it. Databases, HTTP clients, clocks and random number generators all arrive as arguments:</p>
+
+      <pre class="code"><span class="c"># The decision logic has no I/O of its own. In production `store` is Redis</span>
+<span class="c"># and `now` is the wall clock. In tests they are a dict and a fixed datetime.</span>
 <span class="k">def</span> decide(request, campaigns, store, now):
-    ...</pre>
+    ...
 
-      <p>The payoff is speed &mdash; a six-second feedback loop instead of a two-minute one &mdash; and honesty: a test that needs a running database is partly testing the database.</p>
+<span class="c"># So a frequency-cap test needs no Redis, and no container:</span>
+<span class="k">def</span> test_a_member_at_their_cap_is_rejected():
+    store = {<span class="g">"freq:member-0042:camp-1:2026-07-22"</span>: 3}
+    result = decide(request, [campaign_capped_at(3)], store, now=FIXED_TIME)
+    <span class="k">assert</span> result.no_fill_reason == <span class="g">"frequency_capped"</span></pre>
+
+      <p>Two payoffs. Speed &mdash; a six-second feedback loop instead of a two-minute one, which changes how often you are willing to run it. And honesty &mdash; a test that needs a running database is partly testing the database, and will fail for reasons that have nothing to do with your code.</p>
 
       <div class="found">
-        <span class="tag">The limit of this rule</span>
-        <h5>Fast tests can agree with each other and all be wrong</h5>
-        <p>On Day 7 a stand-in for the vector database faithfully reproduced an incorrect mental model of how it behaved. Every test passed. The real database was silently deleting data.</p>
-        <p>Fake dependencies verify <em>your understanding</em> of a system. They cannot verify the system. Anything that talks to real infrastructure needs at least one genuine round-trip before the design is trusted.</p>
+        <span class="tag">The limit of this rule &#8212; and it is a real one</span>
+        <h5>Fast tests can all agree with each other and all be wrong</h5>
+        <p>On Day 7 a stand-in for the vector database faithfully reproduced an <em>incorrect</em> mental model of how the real one behaves. Every test passed. The real database was silently deleting data on every write.</p>
+        <p>Substitutes verify <strong>your understanding</strong> of a system. They cannot verify the system. Anything that talks to real infrastructure needs at least one genuine round-trip before the design is trusted &mdash; which is exactly how that bug was eventually caught.</p>
       </div>
 
-      <h4 class="sub">5 &middot; Decisions are written down with an expiry condition</h4>
+      <h4 class="sub">Step 5 &middot; Decisions get written down with an expiry condition</h4>
 
-      <p>Every significant choice becomes an <strong>Architecture Decision Record</strong> &mdash; a short document with a fixed shape:</p>
+      <p>Every significant choice becomes an <strong>Architecture Decision Record</strong> with a fixed five-part shape. Here is ADR-0003, in full outline:</p>
+
+      <pre class="code"><span class="k">Context</span>       What was true when this was decided.
+              Frequency counts are written on every impression, are
+              per-viewer, and are worthless after midnight.
+
+<span class="k">Decision</span>      What was chosen.
+              Redis holds decision state under day-scoped keys that
+              expire themselves. Postgres stays the system of record.
+
+<span class="k">Alternatives</span>  What was rejected, and honestly why.
+              Postgres for everything &#8212; rejected: these are counters
+              with an expiry, not records; it would mean writing a
+              cleanup job to delete yesterday's rows forever.
+
+<span class="k">Consequences</span>  What this now costs.
+              Two stores to reason about. Redis can be lost without
+              data loss, but the pacer briefly forgets what it spent.
+
+<span class="a">Trigger</span>       The specific condition that reverses this.
+              <span class="a">Day 4's event-service, when impressions become durable
+              and spend becomes billable.</span></pre>
+
+      <p>The trigger is the part that makes this worth doing. Without it a decision hardens into folklore &mdash; <em>"we don't do that here"</em> &mdash; and nobody remembers whether the original reason still holds. With it, the decision carries its own review date.</p>
+
+      <p><strong>And it fired.</strong> One day later, event-service made impressions durable. The trigger had named that exact event in advance, so the question was already on the table rather than being noticed six months later. The answer turned out to be <em>narrow it</em> rather than <em>reverse it</em>:</p>
+
+      <pre class="code"><span class="c"># ADR-0003, Day 4 update</span>
+Postgres now holds the auditable record of what was served.
+Redis keeps only the hot counters the serving path reads.
+
+<span class="a">They now disagree by design &#8212; and the gap between them is
+"reporting loss", which became a panel on the dashboard.</span></pre>
+
+      <p>A decision that could be revisited on schedule turned into a feature. That only happened because someone wrote down, a day in advance, the condition under which they would think about it again.</p>
+
+      <h4 class="sub">Step 6 &middot; Commits say what changed and why</h4>
+
+      <p>Every commit uses a conventional prefix, imperative mood, and must leave the repository green &mdash; tests, lint and types all passing.</p>
+
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th class="mono">Prefix</th><th>Means</th><th class="mono">A real one from this repo</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">feat:</td><td>New capability</td><td class="mono">feat: the chunk, its anchor, and the provenance it inherits</td></tr>
+          <tr><td class="mono">fix:</td><td>Corrects broken behaviour</td><td class="mono">fix: restore mypy to clean after the vector store landed</td></tr>
+          <tr><td class="mono">docs:</td><td>Documentation only</td><td class="mono">docs: ADR-0007, ADR-0008, day-07 devlog</td></tr>
+          <tr><td class="mono">test:</td><td>Tests only</td><td class="mono">test: cover the duplicate-event path</td></tr>
+          <tr><td class="mono">chore: / ci:</td><td>Tooling and pipelines</td><td class="mono">ci: type-check the platform directory too</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>The message body carries the reasoning when it is not obvious. That <code>fix:</code> above reads, in full:</p>
+
+      <pre class="code">fix: restore mypy to clean after the vector store landed
+
+The previous commit passed its gates through a pipe, so mypy's
+non-zero exit was swallowed by tail and nine type errors went in
+green. Day-04 execution note 6, committed by the person who wrote it.</pre>
+
+      <p>Writing that down costs thirty seconds and makes the mistake findable forever. Hiding it costs nothing today and everything the third time it happens.</p>
+
+      <h4 class="sub">Step 7 &middot; Reproduce the CI command exactly, before pushing</h4>
+
+      <p>Running a <em>superset</em> of what CI runs is not the same as running what CI runs, and the difference hides an entire class of failure.</p>
+
+      <p>Day 7 made this concrete. The local machine had an optional AI dependency installed; the build server would not. So before pushing, the environment was deliberately reduced to match:</p>
+
+      <pre class="code"><span class="c"># Strip the optional group so the venv matches the build server exactly</span>
+$ uv sync --group dev
+ <span class="a">- model2vec==0.8.2</span>
+ <span class="a">- numpy==2.4.6</span>
+
+<span class="c"># Then run the four CI commands verbatim</span>
+$ uv run ruff check .                                    <span class="g">All checks passed</span>
+$ uv run ruff format --check .                           <span class="g">105 files formatted</span>
+$ uv run mypy tests substrate platform bellwether        <span class="g">no issues in 105 files</span>
+$ uv run pytest                                          <span class="g">289 passed</span></pre>
+
+      <p>The test count went <em>up</em> by one without the optional package &mdash; a test that skips when the library is present and runs when it is absent. Both environments genuinely covered, and that would have been invisible without reproducing the real one.</p>
+
+      <div class="aside">
+        <span class="tag">Where this rule came from</span>
+        <p>Day 5, execution note 10: a test imported a module that resolved under pytest but not under the exact command CI runs. Caught by reproducing CI locally, <em>not</em> by CI &mdash; because catching it in CI means a red build, a context switch, and a fix commit.</p>
+        <p>The note ends: <em>"Reproduce the CI command verbatim before every push; running a superset locally hides this class of failure."</em></p>
+      </div>
+
+      <h4 class="sub">Step 8 &middot; The day ends by recording what the plan got wrong</h4>
+
+      <p>Every plan ends with a section titled <strong>"Execution notes &mdash; what the plan missed."</strong> Written after the work, listing everything reality disagreed about. Not a retrospective anyone schedules &mdash; a numbered list, in the plan file, committed.</p>
+
+      <p>A real one, from Day 7:</p>
+
+      <pre class="code"><span class="a">1.</span> <span class="k">PUT /points in Qdrant replaces a point outright.</span> The plan's
+   two-call write destroys every previously written engine's vector,
+   because the payload write is itself a full replace. Every unit test
+   passed against the fake. Found only by pointing the store at a
+   running Qdrant and asking whether the first vector survived. It did not.
+
+   <span class="a">&#8594; Any plan that fakes a datastore must include one live
+     round-trip before the design is trusted.</span></pre>
+
+      <p>The next day's plan is written with those notes open. This is the single highest-leverage habit in the whole process, because <strong>the same mistakes genuinely do recur in disguise</strong>:</p>
+
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th class="mono">Day</th><th>What happened</th><th>The shared root cause</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">06</td><td>Line endings differ between Windows and Linux, so identical files fingerprint differently</td><td rowspan="2">A text file written on Windows carries bytes you did not write, in line 1, invisibly</td></tr>
+          <tr><td class="mono">07</td><td>A byte-order mark turned <code>VOYAGE_API_KEY</code> into an unrecognisable name</td></tr>
+          <tr><td class="mono">04</td><td>Warning written: a piped verification command hides its failure</td><td rowspan="2">A pipeline reports the exit code of its <em>last</em> command, not its first</td></tr>
+          <tr><td class="mono">07</td><td>The warning's own author did it, and shipped nine type errors green</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h4 class="sub">Step 9 &middot; The definition of done, every day</h4>
+
+      <p>A day is not finished when the code works. It is finished when all of this is true:</p>
 
       <ul>
-        <li><strong>Context</strong> &mdash; what was true when this was decided</li>
-        <li><strong>Decision</strong> &mdash; what was chosen</li>
-        <li><strong>Alternatives considered</strong> &mdash; what was rejected, and honestly why</li>
-        <li><strong>Consequences</strong> &mdash; what this now costs</li>
-        <li><strong>The trigger</strong> &mdash; the specific condition that would reverse it</li>
+        <li>Every task in the plan is implemented, test-first, and committed separately</li>
+        <li>All four gates pass, run individually and unpiped, with Docker stopped</li>
+        <li>The CI command has been reproduced verbatim in a matching environment</li>
+        <li>Any significant choice has an ADR &mdash; with alternatives and a trigger</li>
+        <li>The devlog is written: shipped, decisions, what running it found, what tomorrow does</li>
+        <li>The running doc is updated &mdash; day tracker, and the scoreboard if a number was produced</li>
+        <li>The execution notes are written, honestly, including the embarrassing ones</li>
       </ul>
 
-      <p>The trigger is the part that matters. Without it a decision hardens into folklore &mdash; "we don't do that here" &mdash; and nobody remembers whether the reason still holds. With it, the decision carries its own review date.</p>
-
-      <p>On Day 4 a trigger written on Day 3 fired exactly on schedule, and the answer was to narrow the decision rather than reverse it. That only happened because the condition was written down a day in advance.</p>
-
-      <h4 class="sub">6 &middot; The day ends by recording what the plan got wrong</h4>
-
-      <p>Every plan ends with a section called <strong>"Execution notes &mdash; what the plan missed."</strong> Written after the work, listing everything reality disagreed about.</p>
-
-      <p>The next day's plan is written with those notes open. It is the single highest-leverage habit in the whole process, because the same mistakes genuinely do recur &mdash; Day 6's line-ending trap and Day 7's byte-order-mark trap are the same trap wearing different hats.</p>
+      <p>That last clause is doing real work. The mistakes on this page &mdash; the piped gate, the destroyed vectors, the gate that measured itself &mdash; are all self-reported. A build log that only contains successes is a marketing document, and nobody learns anything from it, least of all the person who wrote it.</p>
     </div>
   </section>
 
