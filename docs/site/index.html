@@ -192,7 +192,7 @@
   <div class="bar-in">
     <span class="rec"><span class="rec-dot" aria-hidden="true"></span>REC</span>
     <span class="bar-title">BELLWETHER · BUILD LOG</span>
-    <span class="bar-day">DAY <b>06</b> / 30</span>
+    <span class="bar-day">DAY <b>07</b> / 30</span>
   </div>
 </div>
 
@@ -211,15 +211,15 @@
 
 <section class="pod" aria-label="30-day build timeline">
   <div class="wrap">
-    <div class="pod-head"><span>The 30-day pod</span><span>6 shipped · 24 queued</span></div>
+    <div class="pod-head"><span>The 30-day pod</span><span>7 shipped · 23 queued</span></div>
     <div class="pod-strip">
       <div class="seg shipped nohead" title="Day 1 — Repo, ADR-0001, infra skeleton, running doc v1, CI · shipped"></div>
       <div class="seg shipped nohead" title="Day 2 — campaign-service (CRUD, Postgres, tests, OpenAPI) · shipped"></div>
       <div class="seg shipped nohead" title="Day 3 — ad-decision-service (targeting, freq capping, brand safety, pacing) · shipped"></div>
       <div class="seg shipped nohead" title="Day 4 — event-service + Grafana dashboards · shipped"></div>
       <div class="seg shipped nohead" title="Day 5 — traffic-simulator + failure injection · Level 0 gate · shipped"></div>
-      <div class="seg shipped" title="Day 6 — document ingestion pipeline · shipped"></div>
-      <div class="seg" title="Day 7 — chunking + embedding strategies"></div>
+      <div class="seg shipped nohead" title="Day 6 — document ingestion pipeline · shipped"></div>
+      <div class="seg shipped" title="Day 7 — chunking + embeddings + Qdrant · shipped"></div>
       <div class="seg" title="Day 8 — hybrid retrieval + reranking"></div>
       <div class="seg" title="Day 9 — AST knowledge graph"></div>
       <div class="seg" title="Day 10 — MCP server + retrieval evals · Level 1 gate"></div>
@@ -478,6 +478,44 @@ flowchart LR
 
     <h3>Hashing is what makes Day 7 affordable</h3>
     <p>Content is normalised to <code>\n</code> before hashing, so a Windows checkout and a Linux CI runner agree on what a document is. Run the pipeline twice and the second run reports <strong>67 unchanged, 0 written</strong>. Once Day 7 attaches an embedding cost to every changed document, that is the difference between re-running ingestion freely and not re-running it at all.</p>
+    <h3>Day 7 — cutting the corpus so it can be retrieved</h3>
+    <p>A whole document is the wrong unit. Nobody asks "what is in campaign-service's OpenAPI contract" — they ask what <code>POST /campaigns</code> accepts. So the split points come from the content's own structure: Python at symbol boundaries via the AST, Markdown at headings, OpenAPI one chunk per operation. Every chunk keeps an <strong>anchor</strong> — the symbol, heading path, or route that names it. A chunk that cannot name itself can be returned but not defended.</p>
+    <table class="tbl">
+      <thead><tr><th class="mono">Strategy</th><th class="mono">Chunks</th><th class="mono">p50 chars</th><th class="mono">Anchored</th><th>What it cuts on</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">markdown</td><td class="mono">331</td><td class="mono">1428</td><td class="mono st done">100%</td><td>headings, carrying the full path down</td></tr>
+        <tr><td class="mono">python_ast</td><td class="mono">177</td><td class="mono">386</td><td class="mono st done">100%</td><td>functions and classes, decorators attached</td></tr>
+        <tr><td class="mono">openapi</td><td class="mono">60</td><td class="mono">851</td><td class="mono st done">100%</td><td>one operation or schema at a time</td></tr>
+        <tr><td class="mono">window</td><td class="mono">17</td><td class="mono">1963</td><td class="mono">0%</td><td>the fallback nothing may fail past</td></tr>
+        <tr><td class="mono"><b>all</b></td><td class="mono"><b>585</b></td><td class="mono"><b>854</b></td><td class="mono st done"><b>97%</b></td><td>structure-aware routing by document kind</td></tr>
+        <tr><td class="mono">naive_window</td><td class="mono">349</td><td class="mono">1960</td><td class="mono">0%</td><td>splitting on a character count — the default everyone ships</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Four engines, one point, one set of chunks</h3>
+    <p>The engine is a parameter, not a commitment. Qdrant stores <strong>one point per chunk with a named vector per engine</strong>, so all four are compared on byte-identical inputs — fairness becomes a property of the schema rather than a discipline someone has to maintain (ADR-0008). The spec called for local <code>sentence-transformers</code>; measuring the corpus inverted that, and ADR-0007 says why.</p>
+    <table class="tbl">
+      <thead><tr><th class="mono">Engine</th><th class="mono">Dims</th><th class="mono">Cost</th><th class="mono">Wall</th><th class="mono">Chunks/s</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">gemini-embedding-001</td><td class="mono">3072</td><td class="mono">$0.0223</td><td class="mono">10.1s</td><td class="mono">58</td><td>quality tier — #1 on MTEB</td></tr>
+        <tr><td class="mono">voyage-3.5</td><td class="mono">1024</td><td class="mono">—</td><td class="mono">—</td><td class="mono">—</td><td>free-tier rate limit, not yet run</td></tr>
+        <tr><td class="mono">potion-retrieval-32M</td><td class="mono">512</td><td class="mono st done">free</td><td class="mono">2.1s</td><td class="mono">282</td><td>local, offline, no torch, no GPU</td></tr>
+        <tr><td class="mono">hashing</td><td class="mono">256</td><td class="mono st done">free</td><td class="mono st done">0.2s</td><td class="mono st done">3109</td><td>the CI engine — no deps, no network</td></tr>
+      </tbody>
+    </table>
+
+    <h3>What two cents buys</h3>
+    <p>Asked <em>"how often can the same viewer be shown one advert?"</em> — a question containing none of the words <em>frequency</em>, <em>cap</em>, <em>member</em>, or <em>impression</em> — the three engines that ran disagree in exactly the way their price suggests.</p>
+    <table class="tbl">
+      <thead><tr><th class="mono">Engine</th><th class="mono">Score</th><th>Top hit</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">gemini</td><td class="mono">0.765</td><td class="mono st done">Substrate gaps › SG-04 › Multiple frequency-cap windows</td></tr>
+        <tr><td class="mono">potion</td><td class="mono">0.428</td><td class="mono">substrate.ad_decision_service.main.decide</td></tr>
+        <tr><td class="mono">hashing</td><td class="mono">0.328</td><td class="mono">a Day 7 plan section — noise, exactly as designed</td></tr>
+      </tbody>
+    </table>
+    <p>Gemini understood the question. potion found the neighbourhood. The lexical baseline matched nothing meaningful, because no word in the query appears in the answer. That gap is the entire argument for paying for embeddings, and it is measured here rather than quoted from a vendor chart.</p>
+
     <pre class="mermaid">
 flowchart TB
     R1["run 1&lt;br/&gt;65 added"] --> C["corpus.jsonl"]
@@ -502,7 +540,7 @@ flowchart TB
         <tr><td class="mono">04</td><td class="mono">0</td><td>event-service + observability stack (Grafana dashboards, JSON logging lib)</td><td class="st done">● SHIPPED</td></tr>
         <tr><td class="mono">05</td><td class="mono">0</td><td>traffic-simulator + failure injection · Level 0 quality gate</td><td class="st done">● SHIPPED</td></tr>
         <tr><td class="mono">06</td><td class="mono">1</td><td>Document ingestion pipeline</td><td class="st done">● SHIPPED</td></tr>
-        <tr><td class="mono">07</td><td class="mono">1</td><td>Chunking + embedding strategies (comparison documented)</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">07</td><td class="mono">1</td><td>Chunking + embedding strategies (comparison documented)</td><td class="st done">● SHIPPED</td></tr>
         <tr><td class="mono">08</td><td class="mono">1</td><td>Hybrid retrieval + reranking</td><td class="st plan">○ QUEUED</td></tr>
         <tr><td class="mono">09</td><td class="mono">1</td><td>AST knowledge graph + visualization</td><td class="st plan">○ QUEUED</td></tr>
         <tr><td class="mono">10</td><td class="mono">1</td><td>MCP server + retrieval eval suite · Level 1 quality gate</td><td class="st plan">○ QUEUED</td></tr>
@@ -538,6 +576,14 @@ flowchart TB
     <div class="card">
       <h3>The name</h3>
       <p><strong>bellwether</strong> <em>(noun)</em> — a leading indicator; the thing you watch to know where something is heading before the rest of the picture catches up. That is the job twice over: the first AI engineer on a team is a leading indicator of how that team will build a year from now, and the eval scoreboard is a leading indicator of whether the agents are actually making the work better.</p>
+    </div>
+    <div class="card">
+      <h3>ADR-0008 — Qdrant over ChromaDB, for named vectors</h3>
+      <p>Four engines embed the same corpus, and the comparison only means something if every engine sees <strong>identical chunks</strong>. Qdrant stores one point per chunk carrying a named vector per engine, so switching engines is a query parameter and fairness is structural rather than procedural. Chroma has no clean equivalent; pgvector would have put the AI foundation's storage inside the ads platform's own database. The dangerous part, found only against a running server: <code>PUT /points</code> <em>replaces</em> a point, so writing the second engine's vector silently wiped the first. Every test passed. The chart would have rendered beautifully and been a lie.</p>
+    </div>
+    <div class="card">
+      <h3>ADR-0007 — Hosted embeddings by default, and the spec was backwards</h3>
+      <p>The design spec called for local <code>sentence-transformers</code> to save money. The corpus is 149k tokens — about <strong>two cents</strong> with the best model available — while PyTorch is 2.5&nbsp;GB and a resident process competing with Docker on a 16&nbsp;GB laptop. The quality tier turned out to be the <em>lighter</em> option locally, because the compute happens on someone else's hardware. The free tier is the real constraint: Gemini allows 100 embed requests per <em>day</em>, and one pass needs 585. Local <code>potion</code> stays as the free-iteration tier and a dependency-free hashing engine keeps CI offline.</p>
     </div>
     <div class="card">
       <h3>ADR-0006 — The corpus is a manifest, and contracts are generated</h3>
@@ -593,7 +639,7 @@ flowchart TB
 
 <footer>
   <div class="wrap">
-    <p><b>DAY 06 / 30</b> · BUILT IN PUBLIC</p>
+    <p><b>DAY 07 / 30</b> · BUILT IN PUBLIC</p>
     <p>BELLWETHER is an independent open-source project, not affiliated with or endorsed by Netflix.</p>
   </div>
 </footer>
