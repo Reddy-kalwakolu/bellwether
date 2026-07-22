@@ -117,6 +117,8 @@ collide with other local database instances.
 - [Architecture Decision Records](docs/adr/)
 - [Running doc (living explainer with diagrams)](docs/site/index.html)
 - [Daily devlog](docs/devlog/)
+- [Level 0 deep dive](docs/site/level-0.html) — architecture, every decision, and an honest fidelity comparison to production CTV ad tech
+- [Substrate gaps backlog](docs/backlog/substrate-gaps.md) — the known gaps, queued as work for the Level 2 dev agents
 
 ## Disclaimer
 
