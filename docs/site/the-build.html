@@ -253,6 +253,7 @@
     <p class="eyebrow"><span class="tick">&#9656;</span> A LIVING ACCOUNT · EXTENDED EVERY BUILD DAY</p>
     <h1 class="mark">I'm building an AI<br>platform that writes code,<br>reviews it, and <em>runs it</em></h1>
     <p class="lede"><strong>BELLWETHER is an AI layer for an engineering team.</strong> Agents that generate code and tests, review pull requests against written standards, and diagnose production incidents from real logs and metrics &mdash; all grounded in this team's own decisions rather than generic training data, and every one of them carrying a published score.</p>
+    <p class="lede">But an AI layer is only worth as much as what you can test it against. So I am building it something real to operate on: <strong>a small ads platform</strong> &mdash; four services deciding which advert to serve, recording what got delivered, and breaking in ways I can cause on demand. <strong>BELLWETHER is the AI. The ads platform is what it operates.</strong> I picked ad serving because it is the domain of the team I am aiming at, and because its real outages are configuration mistakes &mdash; which leaves an actual cause in an actual database for an agent to find.</p>
     <p class="lede">I'm building it in thirty days and writing it down as I go: the method I follow each day, every tool and why I picked it over the alternative, the architecture at each stage, every decision and the condition that would reverse it, and each time reality proved me wrong.</p>
     <p class="lede"><strong>This page currently covers Day 0 through Day 07.</strong> I write nothing with hindsight &mdash; I record the mistakes on the day I make them, and I leave them on the page.</p>
 
@@ -437,6 +438,16 @@ within_budget(...)  &#8594; <span class="g">True</span>     <span class="c"># be
         <p>Harder to build, far harder to fake, and the only version of this project a Staff engineer would find interesting rather than familiar.</p>
       </div>
 
+      <h4 class="sub">Why I'm building it in public, with the failures left in</h4>
+
+      <p>The honest version: I want this job, and I know what a portfolio project usually looks like from the other side of the desk. A repository with a confident README, a demo video where everything works first time, and no way for a reviewer to tell whether any of it survives contact with reality.</p>
+
+      <p>I did not want to send that. Anyone can claim they build agentic systems. Almost nobody publishes the number that would prove it, because the number is often disappointing.</p>
+
+      <p>So I am building the version that can be checked. In the open, one day at a time, with the mistakes left where they happened. <strong>Every figure on this page came from a command I actually ran.</strong> Every amber box is something I got wrong and then wrote down &mdash; including the day I broke a rule I had written myself, four days earlier, about that exact mistake.</p>
+
+      <p>If the agents turn out worse than I hoped, that will be on this page too. It is the only thing that makes the good numbers worth anything.</p>
+
       <h4 class="sub">The consequence: build the boring half first</h4>
 
       <p>There is a practical problem with operations agents. To show one diagnosing an outage, you need an outage.</p>
@@ -550,7 +561,7 @@ flowchart LR
 
 <span class="c">- [ ] Write failing tests &#8594; run &#8594; implement &#8594; run &#8594; commit</span></pre>
 
-      <p>Two reasons I do this. It forces me to think the design through while changing it is still free &mdash; renaming a function in a plan costs nothing, renaming it across nine files costs me an hour. And it means a fresh session, or someone else entirely, can pick the work up without re-deriving anything I already worked out.</p>
+      <p>I started writing plans into the repository because I kept discovering, four files into a task, that I had chosen the wrong shape &mdash; and by then the wrong shape was load-bearing. It forces me to think the design through while changing it is still free &mdash; renaming a function in a plan costs nothing, renaming it across nine files costs me an hour. And it means a fresh session, or someone else entirely, can pick the work up without re-deriving anything I already worked out.</p>
 
       <p>The plans are also, deliberately, <em>part of the corpus</em>. From Day 6 onward the AI layer can read how each day was planned, including what the plan got wrong.</p>
 
@@ -579,7 +590,9 @@ flowchart LR
 E   ModuleNotFoundError: No module named <span class="g">'substrate.event_service.main'</span>
 <span class="a">1 error during collection</span></pre>
 
-      <p>This is the step I am most tempted to skip, and it is the one that matters most. Running the test <em>before</em> the code exists proves the test is capable of failing at all.</p>
+      <p>This is the step I am most tempted to skip. It feels like theatre &mdash; I already know it will fail, so why spend the ten seconds watching it?</p>
+
+      <p>I do it anyway, every time, because running the test <em>before</em> the code exists is the only proof that the test is capable of failing at all.</p>
 
       <p>A test that has never been seen failing might be asserting nothing at all &mdash; a typo in a fixture name, an assertion inside a branch that never runs, a comparison that is always true. <strong>A test that always passes is worse than no test</strong>, because it produces confidence without evidence, and it will still be passing years later while the behaviour it claims to protect has quietly rotted.</p>
 
@@ -630,6 +643,8 @@ uv run pytest</pre>
 
       <p>A rule I hold myself to: <strong>the entire suite passes with Docker stopped and no API keys set.</strong> 289 tests, about six seconds.</p>
 
+      <p>I built it this way for a selfish reason. A test suite that takes two minutes and needs four containers is a suite I will quietly stop running &mdash; not deliberately, just by drifting into running it less often, until the day it fails and I have no idea which of the last twenty changes did it. Six seconds is fast enough that I never have to decide.</p>
+
       <p>This is enforced by design rather than willpower. Business logic never reaches out for what it needs &mdash; it is handed it. Databases, HTTP clients, clocks and random number generators all arrive as arguments:</p>
 
       <pre class="code"><span class="c"># The decision logic has no I/O of its own. In production `store` is Redis</span>
@@ -677,7 +692,7 @@ uv run pytest</pre>
               <span class="a">Day 4's event-service, when impressions become durable
               and spend becomes billable.</span></pre>
 
-      <p>The trigger is the part that makes this worth doing. Without it my decision hardens into folklore &mdash; <em>"we don't do that here"</em> &mdash; and nobody, including me, remembers whether the original reason still holds. With it, the decision carries its own review date.</p>
+      <p>I add the trigger because of something I have watched happen on every team I have worked on: a decision that was correct in 2023 is still being obeyed in 2026, and nobody can say why. The trigger is the part that makes this worth doing. Without it my decision hardens into folklore &mdash; <em>"we don't do that here"</em> &mdash; and nobody, including me, remembers whether the original reason still holds. With it, the decision carries its own review date.</p>
 
       <p><strong>And it fired.</strong> One day later, event-service made impressions durable. The trigger had named that exact event in advance, so the question was already on the table rather than being noticed six months later. The answer turned out to be <em>narrow it</em> rather than <em>reverse it</em>:</p>
 
@@ -715,7 +730,7 @@ The previous commit passed its gates through a pipe, so mypy's
 non-zero exit was swallowed by tail and nine type errors went in
 green. Day-04 execution note 6, committed by the person who wrote it.</pre>
 
-      <p>Writing that down cost me thirty seconds and makes my mistake findable forever. Hiding it would have cost nothing today and everything the third time I do it.</p>
+      <p>I write the reasoning into the commit because the commit is the only artefact that survives with the code. Writing that down cost me thirty seconds and makes my mistake findable forever. Hiding it would have cost nothing today and everything the third time I do it.</p>
 
       <h4 class="sub">Step 7 &middot; Reproduce the CI command exactly, before pushing</h4>
 
@@ -757,7 +772,7 @@ $ uv run pytest                                          <span class="g">289 pas
    <span class="a">&#8594; Any plan that fakes a datastore must include one live
      round-trip before the design is trusted.</span></pre>
 
-      <p>I write the next day's plan with those notes open. This is the single highest-leverage habit I have, because <strong>I genuinely do repeat the same mistake in disguise</strong>:</p>
+      <p>I write the next day's plan with those notes open. This is the single highest-leverage habit I have, and I only added it after Day 3 &mdash; because <strong>I genuinely do repeat the same mistake in disguise</strong>, and I would not have believed that about myself until I had the table below:</p>
 
       <div class="tbl-scroll">
       <table class="tbl">
@@ -1085,7 +1100,7 @@ flowchart TB
     F6 -.->|"no_creative_fit"| NF
       </pre>
 
-      <p>The winner is <strong>the campaign with the most daily budget remaining</strong>, not the first one that matches. Otherwise whichever campaign happens to sort first drains its entire day by mid-morning and everything else starves.</p>
+      <p>I made the winner <strong>the campaign with the most daily budget remaining</strong>, not the first one that matches. Otherwise whichever campaign happens to sort first drains its entire day by mid-morning and everything else starves.</p>
 
       <div class="decision">
         <span class="tag">Design rule &#8212; possibly the most consequential one here</span>
@@ -1275,6 +1290,8 @@ flowchart LR
     GRAF -.->|"Level 3"| RCA["ops agent finds&lt;br/&gt;the real cause"]
       </pre>
 
+      <p>I could have built this in an afternoon with a flag each service checks. I spent the extra day on the honest version because of what happens on Day 18: an agent asked to find the root cause of a fake outage can only ever find the fake, and I would have spent the rest of the month grading it against a fixture I wrote myself.</p>
+
       <p>Because the damage is real, <strong>recovery has to be real too.</strong> The <code>steady</code> scenario does not flip a flag back &mdash; it restores the original configuration through the same public API. Which is exactly the remediation an operations agent should later recommend, making it a genuine rehearsal rather than an undo button.</p>
 
       <h4 class="sub">The first published number</h4>
@@ -1316,7 +1333,7 @@ flowchart LR
 
       <p>Level 1 begins. The source code, the five decision records, the daily logs, the runbook, the API contracts, the Compose and Grafana configuration &mdash; all of it becomes the <strong>corpus</strong>.</p>
 
-      <p>This is the <em>context layer</em>: giving an AI your team's actual accumulated knowledge, so it answers from your decisions rather than from generic internet training. Ask a normal AI why this project uses Compose and it will recite general trade-offs. Ask one grounded in this corpus and it should quote ADR-0001 and name its trigger.</p>
+      <p>This is the <em>context layer</em>, and it is the part of the job posting I was most interested in. Giving an AI your team's actual accumulated knowledge, so it answers from your decisions rather than from generic internet training. Ask a normal AI why this project uses Compose and it will recite general trade-offs. Ask one grounded in this corpus and it should quote ADR-0001 and name its trigger.</p>
 
       <pre class="mermaid">
 flowchart LR
