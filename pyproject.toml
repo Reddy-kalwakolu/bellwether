@@ -26,6 +26,15 @@ dev = [
     "pyyaml>=6.0",
     "types-pyyaml>=6.0",
 ]
+# Optional: the local static-embedding engine. Deliberately NOT a default
+# dependency — CI must not install an ML stack or reach the network (ADR-0007).
+embeddings = [
+    "model2vec>=0.6",
+    # numpy 2.5's type stubs use PEP 695 `type` statements, which mypy rejects
+    # against this project's declared 3.11 target. Constrained rather than raising
+    # the target, because "Python 3.11+" is a promise the spec makes.
+    "numpy<2.5",
+]
 
 [tool.uv]
 package = false
@@ -52,6 +61,17 @@ strict = true
 # module), so mypy needs telling where level0_gate lives — pytest's pythonpath
 # is not visible to it.
 mypy_path = "platform"
+
+# model2vec is an optional dependency (ADR-0007): present on a dev machine that ran
+# `--group embeddings`, absent on every CI runner. `follow_imports = skip` makes mypy
+# treat it as opaque in BOTH cases, so the type check cannot pass locally and fail in
+# CI (or the reverse — model2vec pulls numpy, whose stubs need Python 3.12 syntax and
+# blow up against this project's 3.11 target). The module that uses it declares a
+# structural Protocol, so nothing real is lost by not following the import.
+[[tool.mypy.overrides]]
+module = ["model2vec", "model2vec.*", "numpy", "numpy.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
