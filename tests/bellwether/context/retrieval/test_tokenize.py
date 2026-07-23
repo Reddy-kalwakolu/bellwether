@@ -42,6 +42,19 @@ def test_is_deterministic() -> None:
     assert tokenize("BudgetMicros enforced") == tokenize("BudgetMicros enforced")
 
 
+def test_a_leading_underscore_name_keeps_its_whole_form() -> None:
+    # The corpus ingests Python source, where `__init__`, `__main__` and private
+    # helpers are everywhere. Matching from the first alphanumeric character would
+    # silently reduce these to "init" and lose the identifier that was asked for.
+    assert "__init__" in tokenize("__init__")
+    assert "_keep" in tokenize("_keep")
+
+
+def test_trailing_sentence_punctuation_is_still_stripped() -> None:
+    assert "budget" in tokenize("the budget.")
+    assert "budget." not in tokenize("the budget.")
+
+
 def test_exact_token_contributes_more_frequency_than_its_parts() -> None:
     # The whole plus both parts: three tokens from one identifier. This is what
     # gives an exact-identifier query its edge over a merely-related chunk.

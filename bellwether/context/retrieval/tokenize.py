@@ -52,7 +52,12 @@ STOPWORDS = frozenset(
 
 # Keeps `_`, `-`, `/` and `.` inside a token so identifiers and routes survive to
 # the splitting stage, where they are handled deliberately rather than by accident.
-_RAW = re.compile(r"[A-Za-z0-9][A-Za-z0-9_\-/.]*")
+#
+# `_` is a legal *first* character too. Requiring alphanumeric there loses the whole
+# form of every leading-underscore name — `__init__` would match from the `i`, strip
+# to `init`, and never contribute the identifier the query actually asked for. The
+# corpus ingests Python source, where that convention is everywhere.
+_RAW = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_\-/.]*")
 
 # Runs of capitals (HTTPServer), Capitalised words, lowercase runs, digit runs.
 _CAMEL = re.compile(r"[A-Z]+(?![a-z])|[A-Z][a-z]*|[a-z]+|\d+")
@@ -76,7 +81,9 @@ def tokenize(text: str) -> list[str]:
     """
     terms: list[str] = []
     for match in _RAW.findall(text):
-        whole = match.lower().strip("_-/.")
+        # Strips trailing punctuation ("budget." at the end of a sentence) but never
+        # underscores — those are part of the identifier, not around it.
+        whole = match.lower().strip("-/.")
         if _keep(whole):
             terms.append(whole)
 
