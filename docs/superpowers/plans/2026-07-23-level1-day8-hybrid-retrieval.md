@@ -133,6 +133,19 @@ def test_is_deterministic() -> None:
     assert tokenize("BudgetMicros enforced") == tokenize("BudgetMicros enforced")
 
 
+def test_a_leading_underscore_name_keeps_its_whole_form() -> None:
+    # The corpus ingests Python source, where `__init__`, `__main__` and private
+    # helpers are everywhere. Matching from the first alphanumeric character would
+    # silently reduce these to "init" and lose the identifier that was asked for.
+    assert "__init__" in tokenize("__init__")
+    assert "_keep" in tokenize("_keep")
+
+
+def test_trailing_sentence_punctuation_is_still_stripped() -> None:
+    assert "budget" in tokenize("the budget.")
+    assert "budget." not in tokenize("the budget.")
+
+
 def test_exact_token_contributes_more_frequency_than_its_parts() -> None:
     # The whole plus both parts: three tokens from one identifier. This is what
     # gives an exact-identifier query its edge over a merely-related chunk.
@@ -183,7 +196,12 @@ STOPWORDS = frozenset(
 
 # Keeps `_`, `-`, `/` and `.` inside a token so identifiers and routes survive to
 # the splitting stage, where they are handled deliberately rather than by accident.
-_RAW = re.compile(r"[A-Za-z0-9][A-Za-z0-9_\-/.]*")
+#
+# `_` is a legal *first* character too. Requiring alphanumeric there loses the whole
+# form of every leading-underscore name — `__init__` would match from the `i`, strip
+# to `init`, and never contribute the identifier the query actually asked for. The
+# corpus ingests Python source, where that convention is everywhere.
+_RAW = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_\-/.]*")
 
 # Runs of capitals (HTTPServer), Capitalised words, lowercase runs, digit runs.
 _CAMEL = re.compile(r"[A-Z]+(?![a-z])|[A-Z][a-z]*|[a-z]+|\d+")
@@ -207,7 +225,9 @@ def tokenize(text: str) -> list[str]:
     """
     terms: list[str] = []
     for match in _RAW.findall(text):
-        whole = match.lower().strip("_-/.")
+        # Strips trailing punctuation ("budget." at the end of a sentence) but never
+        # underscores — those are part of the identifier, not around it.
+        whole = match.lower().strip("-/.")
         if _keep(whole):
             terms.append(whole)
 
@@ -222,7 +242,7 @@ def tokenize(text: str) -> list[str]:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `python -m uv run pytest tests/bellwether/context/retrieval/test_tokenize.py -v`
-Expected: PASS, 8 passed
+Expected: PASS, 10 passed
 
 - [ ] **Step 5: Run the gates, each unpiped**
 
@@ -3433,7 +3453,7 @@ def format_markdown(results: Sequence[ConfigurationResult]) -> str:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `python -m uv run pytest tests/bellwether/eval/test_report.py -v`
-Expected: PASS, 8 passed
+Expected: PASS, 10 passed
 
 - [ ] **Step 5: Run the gates, each unpiped**
 
