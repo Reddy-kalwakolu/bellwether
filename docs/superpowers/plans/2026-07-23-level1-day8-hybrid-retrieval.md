@@ -3667,13 +3667,20 @@ def _evaluate(args: argparse.Namespace, store: JsonlDocumentStore) -> int:
     return 0
 ```
 
-Add these to the top-level import block (`import time` is already there from Task 7 — do not add it twice):
+Add these to the top-level import block. Task 7 dropped `time` and `SearchHit` because
+nothing used them yet — `_evaluate` is what uses them, so they come back here:
 
 ```python
+import time
+
+from bellwether.context.vectors import SearchHit
 from bellwether.eval.gold import Category, load_gold_set
 from bellwether.eval.pooling import build_pool, pool_coverage
 from bellwether.eval.report import evaluate, evaluate_category, format_results
 ```
+
+Merge each into the existing import block in the right group rather than appending a
+second block — ruff's isort rules will fail the gate otherwise.
 
 - [ ] **Step 4: Build the pool**
 
