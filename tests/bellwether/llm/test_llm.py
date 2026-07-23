@@ -101,6 +101,22 @@ def test_gemini_maps_a_non_200_to_a_typed_error_naming_the_backend() -> None:
         client.complete("rank these", SCHEMA)
 
 
+@pytest.mark.parametrize("error_body", [{"error": None}, {"error": "gateway timeout"}, {}])
+def test_a_non_dict_error_body_still_raises_a_typed_error(error_body: dict[str, Any]) -> None:
+    # Proxies and gateways return these shapes on 429 and 5xx. Reaching for
+    # .get("message") on them is an AttributeError, not an LLMError.
+    client = GeminiClient(api_key="k", transport=FakePost(503, error_body))
+    with pytest.raises(LLMError, match="gemini"):
+        client.complete("rank these", SCHEMA)
+
+
+@pytest.mark.parametrize("error_body", [{"error": None}, {"error": "gateway timeout"}, {}])
+def test_claude_also_survives_a_non_dict_error_body(error_body: dict[str, Any]) -> None:
+    client = ClaudeClient(api_key="k", transport=FakePost(503, error_body))
+    with pytest.raises(LLMError, match="claude"):
+        client.complete("rank these", SCHEMA)
+
+
 def test_malformed_json_raises_rather_than_returning_junk() -> None:
     client = GeminiClient(api_key="k", transport=FakePost(200, _gemini_body("not json at all")))
     with pytest.raises(LLMError, match="gemini"):

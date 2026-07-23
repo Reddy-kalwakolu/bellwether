@@ -88,7 +88,13 @@ class GeminiClient:
         elapsed_ms = (time.perf_counter() - started) * 1000
 
         if status != 200:
-            message = body.get("error", {}).get("message", body)
+            # `body.get("error", {})` only defaults when the key is absent. A present
+            # `"error": null` or `"error": "gateway timeout"` — both routine from
+            # proxies on a 429 or 5xx — would then hit .get() on None or a str and
+            # raise AttributeError, which is the one thing this branch exists to
+            # prevent. Day 7's embedders/hosted.py `_require` already guards this way.
+            error = body.get("error")
+            message = error.get("message", error) if isinstance(error, dict) else (error or body)
             raise LLMError(f"gemini returned {status}: {message}")
 
         text = _first_text(body)
