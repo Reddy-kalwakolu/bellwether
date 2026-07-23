@@ -2215,12 +2215,19 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pytest
+
 from bellwether.context.chunking.models import Chunk, build_chunk
 from bellwether.context.documents import build_document
 from bellwether.context.embedders import HashingEmbedder
 from bellwether.context.retrieval.bm25 import BM25Index
 from bellwether.context.retrieval.rerank import HeuristicReranker
-from bellwether.context.retrieval.search import SearchConfig, SearchMode, SearchService
+from bellwether.context.retrieval.search import (
+    SearchConfig,
+    SearchError,
+    SearchMode,
+    SearchService,
+)
 from bellwether.context.vectors import InMemoryVectorStore
 
 NOW = datetime(2026, 7, 23, 12, 0, tzinfo=UTC)
@@ -2308,6 +2315,16 @@ def test_hybrid_llm_without_a_reranker_falls_back_to_hybrid() -> None:
     assert len(hits) == 1
 
 
+def test_an_engine_the_embedder_cannot_produce_is_refused() -> None:
+    # The eval harness iterates engines. If config.engine drifts from the embedder,
+    # the store gets one engine's vectors queried with another's vector and returns
+    # plausible nonsense. Loud failure beats a quiet wrong number.
+    with pytest.raises(SearchError, match="gemini"):
+        _service().search(
+            "budget_micros", SearchConfig(mode=SearchMode.DENSE, engine="gemini", limit=2)
+        )
+
+
 def test_results_are_reproducible_across_calls() -> None:
     service = _service()
     config = SearchConfig(mode=SearchMode.HYBRID, engine="hashing", limit=4)
@@ -2366,6 +2383,10 @@ class SearchConfig:
     candidate_depth: int = 20
 
 
+class SearchError(RuntimeError):
+    """The search was asked for something incoherent."""
+
+
 class SearchService:
     """Retrieve, fuse, rerank — with every stage a parameter."""
 
@@ -2385,6 +2406,17 @@ class SearchService:
         """The best `config.limit` chunks for `query` under `config.mode`."""
         if not query.strip():
             return []
+
+        # The query is embedded by `self.embedder` but looked up under
+        # `config.engine`. Nothing else ties those two together, so a caller that
+        # iterates engines — which the eval harness does — could search one engine's
+        # vectors with another engine's query vector and get plausible, wrong
+        # numbers. Fail loudly instead.
+        if config.engine != self.embedder.spec.name:
+            raise SearchError(
+                f"config.engine is {config.engine!r} but the query would be embedded "
+                f"by {self.embedder.spec.name!r}"
+            )
 
         depth = max(config.candidate_depth, config.limit)
 
@@ -2414,7 +2446,7 @@ class SearchService:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `python -m uv run pytest tests/bellwether/context/retrieval/test_search.py -v`
-Expected: PASS, 7 passed
+Expected: PASS, 8 passed
 
 - [ ] **Step 5: Pay Day 7's CLI debt — rewrite `__main__.py`**
 
