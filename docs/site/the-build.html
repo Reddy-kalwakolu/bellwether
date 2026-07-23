@@ -578,164 +578,23 @@ within_budget(...)  &#8594; <span class="g">True</span>     <span class="c"># be
 
       <h4 class="sub">So the project is two systems, and the unglamorous one goes first</h4>
 
-      <p>The important thing this diagram shows is not the boxes &mdash; it is that <strong>the substrate emits three different kinds of real output, and each one feeds a different part of the AI layer.</strong> That mapping is the whole reason the platform gets built first.</p>
+      <p>One system is the point. The other exists only so the first has something real to work on.</p>
 
       <figure class="figure">
-        <div class="figure-head">
-          <b>System architecture &middot; how the two halves connect</b>
-          <span class="key">
-            <span><i class="k-sub"></i>substrate</span>
-            <span><i class="k-ai"></i>AI layer</span>
-            <span><i class="k-eval"></i>evaluation</span>
-          </span>
-        </div>
+        <div class="figure-head"><b>The two systems, and the one arrow that matters</b></div>
         <pre class="mermaid">
-flowchart TB
-    subgraph SUB["&#160;SUBSTRATE &#8212; a small ads platform, built Days 1&#8211;5&#160;"]
-        direction LR
-        SIM["traffic-simulator&lt;br/&gt;seeded load + injectable failures"]
-        ADS["ad-decision-service&lt;br/&gt;6-filter serving path"]
-        CS["campaign-service&lt;br/&gt;campaigns, budgets, targeting"]
-        EV["event-service&lt;br/&gt;impressions, clicks, spend"]
-        RED[("Redis&lt;br/&gt;freq caps · pacing spend&lt;br/&gt;(hot, expires nightly)")]
-        PG[("Postgres&lt;br/&gt;system of record")]
-        OBS["Prometheus + Grafana&lt;br/&gt;metrics, dashboards, JSON logs"]
-        SIM ==>|"① ad request"| ADS
-        ADS -->|"reads active campaigns"| CS
-        ADS <-->|"caps + spend"| RED
-        ADS ==>|"② returns the ad"| SIM
-        SIM ==>|"③ reports impression / click"| EV
-        SIM -->|"seeds campaigns ·&lt;br/&gt;PATCHes them to inject a failure"| CS
-        CS --> PG
-        EV --> PG
-        SIM -.-> OBS
-        ADS -.-> OBS
-        CS -.-> OBS
-        EV -.-> OBS
-    end
-
-    STR1(["source, docs,&lt;br/&gt;API contracts, ADRs"])
-    STR2(["logs, metrics,&lt;br/&gt;dashboards"])
-    STR3(["real incidents&lt;br/&gt;with a cause in a table"])
-
-    SUB --> STR1
-    OBS --> STR2
-    SIM --> STR3
-
-    subgraph BW["&#160;BELLWETHER &#8212; the AI layer, built Day 6 onward&#160;"]
-        direction TB
-        CTX["Context layer&lt;br/&gt;grounds every agent in team knowledge"]
-        DEV["Dev agents&lt;br/&gt;code, tests, PR review, deploy checks"]
-        OPS["Ops agents&lt;br/&gt;triage, log/metric correlation, RCA"]
-        ORCH["Orchestrator&lt;br/&gt;coordinates agents, escalates to a human"]
-        CTX --> DEV
-        CTX --> OPS
-        ORCH -.-> DEV
-        ORCH -.-> OPS
-    end
-
-    STR1 ==>|"ingested, chunked, embedded"| CTX
-    STR2 ==>|"parsed, correlated"| OPS
-    STR3 ==>|"the thing to diagnose"| OPS
-
-    EVAL{{"Eval harness&lt;br/&gt;a published score on every capability"}}
-    DEV -.-> EVAL
-    OPS -.-> EVAL
-    CTX -.-> EVAL
-
+flowchart LR
+    SUB["SUBSTRATE&lt;br/&gt;a small ads platform&lt;br/&gt;&#8226;&lt;br/&gt;4 services · real traffic&lt;br/&gt;real logs · real incidents"]
+    BW["BELLWETHER&lt;br/&gt;the AI layer &#8212; the point&lt;br/&gt;&#8226;&lt;br/&gt;context · dev agents · ops agents&lt;br/&gt;orchestrator · evals"]
+    SUB ==>|"its code, logs, metrics&lt;br/&gt;and real failures"| BW
+    BW -.->|"operates on"| SUB
     classDef sub fill:#241416,stroke:#b8321f,stroke-width:1px,color:#f3d9d6;
-    classDef store fill:#1a1116,stroke:#8f5a63,stroke-width:1px,color:#e6d2d6;
     classDef ai fill:#12211a,stroke:#2f6f4f,stroke-width:1px,color:#d6ece0;
-    classDef stream fill:#1c1c24,stroke:#6b6b78,stroke-width:1px,color:#eaeaef;
-    classDef evalcls fill:#241f14,stroke:#e8a33d,stroke-width:1px,color:#f0d9ac;
-    class SIM,ADS,CS,EV,OBS sub;
-    class RED,PG store;
-    class CTX,DEV,OPS,ORCH ai;
-    class STR1,STR2,STR3 stream;
-    class EVAL evalcls;
+    class SUB sub;
+    class BW ai;
         </pre>
-        <figcaption class="figure-cap">
-          <strong>Follow the numbers through the substrate.</strong> The simulator asks the decision service for an ad ①; the decision service reads campaigns from campaign-service and checks frequency caps and pacing spend in Redis, then returns the ad ②; and <em>the simulator</em> &mdash; not the decision service &mdash; reports the resulting impression to event-service ③, carrying the decision's request-id so the two tie together. The simulator also owns the one edge everything later depends on: it seeds the campaigns, and it <em>injects failures by genuinely PATCHing them</em> through campaign-service's public API (ADR-0005) &mdash; which is where stream ③ comes from. That whole system then falls out into three streams: its <strong>source and docs</strong> become the context layer (Days 6&#8211;10), its <strong>logs and metrics</strong> are what the ops agents read (Days 16&#8211;20), and its <strong>injected incidents</strong> are the thing to diagnose &mdash; a genuinely broken configuration, not a fixture. The eval harness scores every capability and publishes the number, flattering or not.
-        </figcaption>
+        <figcaption class="figure-cap">The unglamorous half gets built first (Days 1&#8211;5), because an agent can only be honestly tested against something that genuinely runs. <strong>The full internal architecture &mdash; every service, the data between them, and one request traced end to end &mdash; has its own chapter next.</strong></figcaption>
       </figure>
-
-      <h4 class="sub">What each part is, in one line</h4>
-
-      <div class="parts">
-        <div class="parts-group">
-          <p class="parts-label g-sub"><i></i>The substrate &mdash; the ads platform</p>
-          <div class="part">
-            <div class="part-name">traffic-simulator<small>:8004 · Day 5</small></div>
-            <div class="part-desc">Drives seeded, reproducible ad-request load through the platform, reports the resulting impressions and clicks, and <b>injects failures by genuinely rewriting campaign configuration</b> &mdash; the source of every real incident.</div>
-          </div>
-          <div class="part">
-            <div class="part-name">ad-decision-service<small>:8002 · Day 3</small></div>
-            <div class="part-desc">The serving path. Takes a viewer and a slot, runs six filters in order &mdash; eligibility, targeting, brand safety, frequency cap, pacing, creative fit &mdash; and returns one ad or a <b>named</b> no-fill reason. Pure rules, injected state.</div>
-          </div>
-          <div class="part">
-            <div class="part-name">campaign-service<small>:8001 · Day 2</small></div>
-            <div class="part-desc">The source of truth for advertisers: campaigns, creatives, budgets, targeting and brand-safety rules. The only writer of its own schema &mdash; everyone else reads it over HTTP.</div>
-          </div>
-          <div class="part">
-            <div class="part-name">event-service<small>:8003 · Day 4</small></div>
-            <div class="part-desc">Ingests impressions and clicks, counting each <b>exactly once</b> using a caller-supplied id as the primary key. Delivery totals are computed on read, never stored as a rollup.</div>
-          </div>
-        </div>
-
-        <div class="parts-group">
-          <p class="parts-label g-store"><i></i>Storage &mdash; two kinds, on purpose</p>
-          <div class="part">
-            <div class="part-name">Redis<small>hot decision state</small></div>
-            <div class="part-desc">Frequency counts and pacing spend, per member and per campaign, under day-scoped keys that <b>delete themselves after 48 hours</b>. Read on every request, written the moment an ad fills.</div>
-          </div>
-          <div class="part">
-            <div class="part-name">PostgreSQL<small>system of record</small></div>
-            <div class="part-desc">Everything that must survive a restart and must never be wrong: campaigns behind campaign-service, and one durable row per delivered impression behind event-service.</div>
-          </div>
-          <div class="part">
-            <div class="part-name">Prometheus + Grafana<small>:9090 / :3000</small></div>
-            <div class="part-desc">Scrapes metrics from all five services every few seconds and draws two dashboards defined as files in the repo. This is the raw material the ops agents read during an incident.</div>
-          </div>
-        </div>
-
-        <div class="parts-group">
-          <p class="parts-label g-ai"><i></i>BELLWETHER &mdash; the AI layer</p>
-          <div class="part">
-            <div class="part-name">Context layer<small>Days 6&ndash;10</small></div>
-            <div class="part-desc">Ingests the whole repo &mdash; code, docs, contracts, decisions &mdash; chunks and embeds it, and stores it in a vector database so any agent can retrieve grounded answers with a citation. <b>Built through Day 7.</b></div>
-          </div>
-          <div class="part">
-            <div class="part-name">Dev agents<small>Days 11&ndash;15</small></div>
-            <div class="part-desc">Generate code and tests, review pull requests against the written standards, and validate a deployment after it lands. Each one scored against a fixed evaluation.</div>
-          </div>
-          <div class="part">
-            <div class="part-name">Ops agents<small>Days 16&ndash;20</small></div>
-            <div class="part-desc">Read logs and metrics during an incident, correlate them across services, and produce a root cause <b>with cited evidence</b> &mdash; graded on how often the cause is actually right.</div>
-          </div>
-          <div class="part">
-            <div class="part-name">Orchestrator<small>Days 21&ndash;25</small></div>
-            <div class="part-desc">Coordinates several agents on one task, resolves their disagreements, and stops to ask a human at the moments that matter.</div>
-          </div>
-        </div>
-
-        <div class="parts-group">
-          <p class="parts-label g-eval"><i></i>Cross-cutting</p>
-          <div class="part">
-            <div class="part-name">Eval harness<small>every level</small></div>
-            <div class="part-desc">Not bolted on at the end. Every capability's target is written before it is built, and its score is published on the running doc &mdash; whether it flatters or not.</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="found">
-        <span class="tag">Plan vs. reality</span>
-        <h5>The architecture I built is not the one I sketched &mdash; and the differences are the point</h5>
-        <p>My Day-0 diagram was a clean serving-path sketch: request in, ad out, event reported. Building it changed the shape in three ways, and every change came from a requirement the sketch had not yet met.</p>
-        <p><b>Pacing spend moved into Redis.</b> I had it as private logic inside the decision service; it had to become shared state, because a budget spent on one request has to be visible to the next.</p>
-        <p><b>The simulator gained an edge to campaign-service.</b> This one is not on the original diagram at all. It is how a failure gets injected &mdash; a real <code>PATCH</code> to real configuration &mdash; and it is the single most important thing in the picture, because without it every ops-agent evaluation later would be graded against a fixture I wrote myself. I could not have drawn it on Day 0; the mechanism did not exist until Day 5.</p>
-        <p><b>Event totals are computed, never stored.</b> The sketch said "aggregate", which sounds like a maintained running total. A running total is a second copy of the truth that drifts, so I compute on read instead.</p>
-        <p>The sketch was simpler. The built version is busier and correct. Simpler was not better here &mdash; it was hiding the control plane that turned out to hold the whole thesis up.</p>
-      </div>
 
       <h4 class="sub">Why an ads platform specifically</h4>
 
@@ -787,145 +646,6 @@ flowchart TB
         <p><strong>More realistic targeting breadth.</strong> Not for realism's sake, but because a decision path with thirty dimensions is much harder to explain than one with three &mdash; and explaining decisions is precisely what Level 3's agents are graded on.</p>
         <p>None of these are on the thirty-day plan. All of them make the substrate a harder and more honest test, which is the only reason they are on a list at all.</p>
       </div>
-
-      <h4 class="sub">The architecture in depth: one real ad request, traced end to end</h4>
-
-      <p>Everything above is the map. Here is the territory &mdash; a single ad request moving through the built system, using the <strong>actual three campaigns the platform seeds itself with on first start</strong>. No values are invented; every number, field and reason string below is what the code produces.</p>
-
-      <p>A viewer reaches an ad break. The simulator sends this to <code>ad-decision-service:8002</code>:</p>
-
-      <pre class="code"><span class="k">POST</span> /ad-request
-{
-  <span class="a">"member"</span>: { <span class="a">"member_id"</span>:<span class="g">"member-0042"</span>, <span class="a">"country"</span>:<span class="g">"US"</span>, <span class="a">"device_type"</span>:<span class="g">"tv"</span> },
-  <span class="a">"slot"</span>:   { <span class="a">"slot_id"</span>:<span class="g">"slot-118"</span>, <span class="a">"duration_seconds"</span>:30,
-              <span class="a">"content_rating"</span>:<span class="g">"TV-14"</span>, <span class="a">"content_categories"</span>:[<span class="g">"drama"</span>,<span class="g">"comedy"</span>] }
-}</pre>
-
-      <p>The decision service pulls the active campaign set from campaign-service, then runs three candidates through six filters in a fixed order &mdash; cheapest and most-eliminating first. Each column is one of the real seed campaigns:</p>
-
-      <div class="tbl-scroll">
-      <table class="tbl">
-        <thead><tr>
-          <th class="mono">Filter, in order</th>
-          <th class="mono">Acme Snacks<br><small>US/CA · all devices · cap 3 · $60/day</small></th>
-          <th class="mono">Northwind Motors<br><small>US/CA/GB/DE · TV only · cap 2 · $65/day</small></th>
-          <th class="mono">Vertex Hydration<br><small>US/BR/GB · mobile/tablet · cap 5 · $50/day</small></th>
-        </tr></thead>
-        <tbody>
-          <tr><td class="mono">1 · eligibility<br><small>active &amp; in flight?</small></td><td class="good">✓</td><td class="good">✓</td><td class="good">✓</td></tr>
-          <tr><td class="mono">2 · targeting<br><small>US · tv · TV-14?</small></td><td class="good">✓</td><td class="good">✓</td><td class="bad">✗ tv &notin; {mobile, tablet}</td></tr>
-          <tr><td class="mono">3 · brand safety<br><small>excluded &cap; slot cats?</small></td><td class="good">✓ {news,true-crime} &cap; {drama,comedy} = &empty;</td><td class="good">✓ {true-crime} &cap; {drama,comedy} = &empty;</td><td class="mono">&mdash;</td></tr>
-          <tr><td class="mono">4 · frequency cap<br><small>seen today &lt; cap?</small></td><td class="good">✓ 0 &lt; 3</td><td class="good">✓ 0 &lt; 2</td><td class="mono">&mdash;</td></tr>
-          <tr><td class="mono">5 · pacing<br><small>spent &lt; daily budget?</small></td><td class="good">✓ $0 &lt; $60</td><td class="good">✓ $0 &lt; $65</td><td class="mono">&mdash;</td></tr>
-          <tr><td class="mono">6 · creative fit<br><small>a creative &le; 30s?</small></td><td class="good">✓ 30s hero</td><td class="good">✓ 30s cutdown<br><small>(60s cinematic too long)</small></td><td class="mono">&mdash;</td></tr>
-          <tr><td class="mono"><strong>verdict</strong></td><td><strong class="good">eligible</strong><br><small>$60 remaining</small></td><td><strong class="good">eligible &#8594; wins</strong><br><small>$65 remaining</small></td><td><strong class="bad">targeting_mismatch</strong></td></tr>
-        </tbody>
-      </table>
-      </div>
-
-      <p>Two campaigns clear all six filters. The tiebreak is the one line of policy that matters most: <strong>the winner is the eligible campaign with the most daily budget remaining</strong> &mdash; <code>max(eligible, key=budget_remaining)</code> &mdash; not the first match. Northwind ($65 left) beats Acme ($60 left). Without that rule, whichever campaign sorted first would drain its whole day by mid-morning.</p>
-
-      <p>The response names the winner and &mdash; this is the part that pays off for the whole rest of the project &mdash; carries a <strong>trace of why every candidate landed where it did</strong>:</p>
-
-      <pre class="code">{
-  <span class="a">"request_id"</span>: <span class="g">"3f9c1a20-..."</span>,
-  <span class="a">"slot_id"</span>: <span class="g">"slot-118"</span>,
-  <span class="a">"filled"</span>: <span class="k">true</span>,
-  <span class="a">"ad"</span>: {
-    <span class="a">"campaign_name"</span>: <span class="g">"Premium sedan, connected TV only"</span>,
-    <span class="a">"advertiser"</span>:    <span class="g">"Northwind Motors"</span>,
-    <span class="a">"creative_name"</span>: <span class="g">"30s cutdown"</span>,
-    <span class="a">"asset_url"</span>:     <span class="g">"https://cdn.example/sedan-30.mp4"</span>,
-    <span class="a">"duration_seconds"</span>: 30,
-    <span class="a">"price_micros"</span>: 2000            <span class="c">// $0.002 per impression</span>
-  },
-  <span class="a">"no_fill_reason"</span>: <span class="k">null</span>,
-  <span class="a">"candidates_considered"</span>: 3,
-  <span class="a">"trace"</span>: [
-    { <span class="a">"campaign_name"</span>:<span class="g">"Premium sedan, connected TV only"</span>, <span class="a">"reason"</span>:<span class="g">"eligible"</span> },
-    { <span class="a">"campaign_name"</span>:<span class="g">"Wide-reach snack launch"</span>,          <span class="a">"reason"</span>:<span class="g">"eligible"</span> },
-    { <span class="a">"campaign_name"</span>:<span class="g">"Sports drink, mobile takeover"</span>,    <span class="a">"reason"</span>:<span class="g">"targeting_mismatch"</span> }
-  ],
-  <span class="a">"decision_latency_ms"</span>: 1.2
-}</pre>
-
-      <p>Two things happen the instant this fills, and they go to <strong>different stores for different reasons</strong>. The decision service writes the frequency count and pacing spend to <strong>Redis</strong> immediately, so the very next request for member-0042 sees the updated numbers. Separately, the simulator reports the impression to <code>event-service:8003</code>, carrying that same <code>request_id</code>, and it becomes one durable row in <strong>Postgres</strong>:</p>
-
-      <pre class="code"><span class="k">POST</span> /events  &#8594; event-service         <span class="c"># the durable record</span>
-{ <span class="a">"event_id"</span>:<span class="g">"7c2..."</span>, <span class="a">"event_type"</span>:<span class="g">"impression"</span>, <span class="a">"request_id"</span>:<span class="g">"3f9c1a20-..."</span>,
-  <span class="a">"campaign_id"</span>:<span class="g">"..."</span>, <span class="a">"member_id"</span>:<span class="g">"member-0042"</span>, <span class="a">"price_micros"</span>:2000 }
-&#8594; <span class="g">201 recorded</span>
-
-<span class="c"># meanwhile, already written to Redis at decision time:</span>
-freq:member-0042:&lt;campaign&gt;:2026-07-23   =  1     <span class="c"># TTL 48h, self-expiring</span>
-spend:&lt;campaign&gt;:2026-07-23              =  2000  <span class="c"># micros</span></pre>
-
-      <p>That split is deliberate and it is <a href="#" onclick="return false" style="border-bottom:1px solid var(--line)">ADR-0003</a> made concrete: <strong>Redis is what the pacer believed at decision time; Postgres is what was actually delivered.</strong> They can diverge &mdash; a lost Redis write, a dropped event &mdash; and the gap between them is not a bug, it is a number on the dashboard called reporting loss.</p>
-
-      <h4 class="sub">The data model, in real fields</h4>
-
-      <p>Two tables carry the durable state. Money is <code>Integer</code> micros everywhere &mdash; never a float &mdash; and a caller-supplied <code>event_id</code> is the primary key that makes double-counting impossible.</p>
-
-      <pre class="code"><span class="k">campaigns</span>  (Postgres, behind campaign-service)
-  id                     uuid   PK
-  name, advertiser       str
-  status                 str    <span class="c"># draft | active | paused</span>
-  budget_micros          int    <span class="c"># total; 32-bit — capped at $2,147 (found the hard way)</span>
-  daily_budget_micros    int
-  frequency_cap_per_day  int    <span class="c"># default 3</span>
-  targeting              json   <span class="c"># { countries, device_types, content_ratings }</span>
-  brand_safety_exclusions json  <span class="c"># ["news", "true-crime", ...]</span>
-  starts_at, ends_at     datetime
-  &#8627; creatives          (name, duration_seconds, asset_url)
-
-<span class="k">ad_events</span>  (Postgres, behind event-service — append-only)
-  event_id     uuid   PK     <span class="c"># chosen by the caller — the whole idempotency trick</span>
-  event_type   str           <span class="c"># impression | click</span>
-  request_id   uuid          <span class="c"># ties the event back to the decision that caused it</span>
-  campaign_id, creative_id  uuid
-  member_id, slot_id        str
-  price_micros int           <span class="c"># impression = 2000, click = 0</span>
-  occurred_at  datetime</pre>
-
-      <h4 class="sub">What the platform measures</h4>
-
-      <p>Nine metric families, scraped from all five services every few seconds. The one that does the most work is <code>ad_candidates_filtered_total</code> &mdash; because Day 3 gave every rejection a <em>name</em>, a fill-rate collapse becomes a single chart where you read the cause off whichever band grew.</p>
-
-      <div class="tbl-scroll">
-      <table class="tbl">
-        <thead><tr><th class="mono">Metric</th><th class="mono">Labels</th><th>The question it answers</th></tr></thead>
-        <tbody>
-          <tr><td class="mono">ad_candidates_filtered_total</td><td class="mono">reason</td><td><strong>Why did candidates lose?</strong> targeting_mismatch, pacing_throttled, frequency_capped…</td></tr>
-          <tr><td class="mono">ad_decisions_total</td><td class="mono">outcome</td><td>Fill rate &mdash; filled vs no-fill</td></tr>
-          <tr><td class="mono">ad_events_total</td><td class="mono">event_type</td><td>Impressions and clicks ingested &#8594; click-through rate</td></tr>
-          <tr><td class="mono">ad_events_duplicate_total</td><td class="mono">&mdash;</td><td>Retries the primary key rejected &mdash; dedup working</td></tr>
-          <tr><td class="mono">ad_spend_micros_total</td><td class="mono">&mdash;</td><td>Money actually delivered</td></tr>
-          <tr><td class="mono">http_request_duration_seconds</td><td class="mono">service</td><td>p95 latency &mdash; is it load, or a fault?</td></tr>
-          <tr><td class="mono">sim_scenario_info</td><td class="mono">scenario</td><td>Which failure mode is currently injected</td></tr>
-        </tbody>
-      </table>
-      </div>
-
-      <h4 class="sub">A failure, with the actual numbers</h4>
-
-      <p>This is where the whole "real, not mocked" argument cashes out. To inject a bad config deploy, the simulator makes a genuine call to campaign-service &mdash; for <em>every</em> campaign:</p>
-
-      <pre class="code"><span class="k">PATCH</span> /campaigns/{id}  &#8594; campaign-service      <span class="c"># repeated for all 3</span>
-{ <span class="a">"targeting"</span>: { <span class="a">"countries"</span>:[<span class="g">"AQ"</span>], <span class="a">"device_types"</span>:[], <span class="a">"content_ratings"</span>:[] } }
-                    <span class="c">// AQ = Antarctica. No viewer is ever there.</span></pre>
-
-      <p>Nothing is faked. The decision service reads the changed configuration and correctly declines to serve, because the targeting genuinely no longer matches anyone. On the running stack, the effect was measured:</p>
-
-      <pre class="code">fill rate     <span class="g">43%</span>  &#8594;  <span class="bad">2%</span>          <span class="c"># within seconds of the PATCH</span>
-loss reason   the <span class="bad">targeting_mismatch</span> band takes over the "why candidates lost" chart</pre>
-
-      <p>Recovery is equally real: the <code>steady</code> scenario <code>PATCH</code>es the original targeting back. It is not an undo flag &mdash; it is the same remediation an ops agent will be asked to recommend on Day 19. And a second failure mode, <code>budget_runaway</code>, is how the platform found a defect in <em>itself</em> on day one:</p>
-
-      <pre class="code"><span class="k">PATCH</span>  daily_budget_micros  &#8594;  9,000,000,000
-&#8594; <span class="bad">500</span>  NumericValueOutOfRange   <span class="c"># budget_micros is a 32-bit Integer,</span>
-                              <span class="c"># capped at 2,147,483,647 micros = $2,147/day</span></pre>
-
-      <p>A real ceiling nobody knew existed, surfaced by pointing real load at a real platform &mdash; and, because it first escaped as a bare 500 in violation of the project's own standard, now a typed <code>422</code>. That is the entire thesis in one incident: <strong>a system that is genuinely running finds the things a plan cannot.</strong></p>
 
       <h4 class="sub">The thirty days, in six levels</h4>
 
@@ -1362,6 +1082,313 @@ $ uv run pytest                                          <span class="g">289 pas
       <h2>Building the world</h2>
       <p>Five days to build a small ads platform that behaves like a real one: it serves adverts, records what it delivered, shows you what it is doing, and can be broken on demand in ways that are genuinely broken.</p>
       <div class="reel-rule"></div>
+    </div>
+  </section>
+
+  <!-- ================= THE ARCHITECTURE ================= -->
+  <section class="day" id="architecture" data-day="&#9670;" data-name="ARCHITECTURE">
+    <div class="measure">
+      <p class="day-eyebrow">Reference &middot; the substrate in full</p>
+      <h3 class="hd">The architecture, in depth</h3>
+
+      <p>Reel two builds the ads platform one day at a time. Before that story starts, here is the finished thing as a whole &mdash; the real services, the real data flowing between them, and one real request traced end to end. Treat it as a map: skim it now for the shape, and come back when a later day zooms in on one part.</p>
+
+      <figure class="figure">
+        <div class="figure-head">
+          <b>System architecture &middot; how the two halves connect</b>
+          <span class="key">
+            <span><i class="k-sub"></i>substrate</span>
+            <span><i class="k-ai"></i>AI layer</span>
+            <span><i class="k-eval"></i>evaluation</span>
+          </span>
+        </div>
+        <pre class="mermaid">
+flowchart TB
+    subgraph SUB["&#160;SUBSTRATE &#8212; a small ads platform, built Days 1&#8211;5&#160;"]
+        direction LR
+        SIM["traffic-simulator&lt;br/&gt;seeded load + injectable failures"]
+        ADS["ad-decision-service&lt;br/&gt;6-filter serving path"]
+        CS["campaign-service&lt;br/&gt;campaigns, budgets, targeting"]
+        EV["event-service&lt;br/&gt;impressions, clicks, spend"]
+        RED[("Redis&lt;br/&gt;freq caps · pacing spend&lt;br/&gt;(hot, expires nightly)")]
+        PG[("Postgres&lt;br/&gt;system of record")]
+        OBS["Prometheus + Grafana&lt;br/&gt;metrics, dashboards, JSON logs"]
+        SIM ==>|"① ad request"| ADS
+        ADS -->|"reads active campaigns"| CS
+        ADS <-->|"caps + spend"| RED
+        ADS ==>|"② returns the ad"| SIM
+        SIM ==>|"③ reports impression / click"| EV
+        SIM -->|"seeds campaigns ·&lt;br/&gt;PATCHes them to inject a failure"| CS
+        CS --> PG
+        EV --> PG
+        SIM -.-> OBS
+        ADS -.-> OBS
+        CS -.-> OBS
+        EV -.-> OBS
+    end
+
+    STR1(["source, docs,&lt;br/&gt;API contracts, ADRs"])
+    STR2(["logs, metrics,&lt;br/&gt;dashboards"])
+    STR3(["real incidents&lt;br/&gt;with a cause in a table"])
+
+    SUB --> STR1
+    OBS --> STR2
+    SIM --> STR3
+
+    subgraph BW["&#160;BELLWETHER &#8212; the AI layer, built Day 6 onward&#160;"]
+        direction TB
+        CTX["Context layer&lt;br/&gt;grounds every agent in team knowledge"]
+        DEV["Dev agents&lt;br/&gt;code, tests, PR review, deploy checks"]
+        OPS["Ops agents&lt;br/&gt;triage, log/metric correlation, RCA"]
+        ORCH["Orchestrator&lt;br/&gt;coordinates agents, escalates to a human"]
+        CTX --> DEV
+        CTX --> OPS
+        ORCH -.-> DEV
+        ORCH -.-> OPS
+    end
+
+    STR1 ==>|"ingested, chunked, embedded"| CTX
+    STR2 ==>|"parsed, correlated"| OPS
+    STR3 ==>|"the thing to diagnose"| OPS
+
+    EVAL{{"Eval harness&lt;br/&gt;a published score on every capability"}}
+    DEV -.-> EVAL
+    OPS -.-> EVAL
+    CTX -.-> EVAL
+
+    classDef sub fill:#241416,stroke:#b8321f,stroke-width:1px,color:#f3d9d6;
+    classDef store fill:#1a1116,stroke:#8f5a63,stroke-width:1px,color:#e6d2d6;
+    classDef ai fill:#12211a,stroke:#2f6f4f,stroke-width:1px,color:#d6ece0;
+    classDef stream fill:#1c1c24,stroke:#6b6b78,stroke-width:1px,color:#eaeaef;
+    classDef evalcls fill:#241f14,stroke:#e8a33d,stroke-width:1px,color:#f0d9ac;
+    class SIM,ADS,CS,EV,OBS sub;
+    class RED,PG store;
+    class CTX,DEV,OPS,ORCH ai;
+    class STR1,STR2,STR3 stream;
+    class EVAL evalcls;
+        </pre>
+        <figcaption class="figure-cap">
+          <strong>Follow the numbers through the substrate.</strong> The simulator asks the decision service for an ad ①; the decision service reads campaigns from campaign-service and checks frequency caps and pacing spend in Redis, then returns the ad ②; and <em>the simulator</em> &mdash; not the decision service &mdash; reports the resulting impression to event-service ③, carrying the decision's request-id so the two tie together. The simulator also owns the one edge everything later depends on: it seeds the campaigns, and it <em>injects failures by genuinely PATCHing them</em> through campaign-service's public API (ADR-0005) &mdash; which is where stream ③ comes from. That whole system then falls out into three streams: its <strong>source and docs</strong> become the context layer (Days 6&#8211;10), its <strong>logs and metrics</strong> are what the ops agents read (Days 16&#8211;20), and its <strong>injected incidents</strong> are the thing to diagnose &mdash; a genuinely broken configuration, not a fixture. The eval harness scores every capability and publishes the number, flattering or not.
+        </figcaption>
+      </figure>
+
+      <h4 class="sub">What each part is, in one line</h4>
+
+      <div class="parts">
+        <div class="parts-group">
+          <p class="parts-label g-sub"><i></i>The substrate &mdash; the ads platform</p>
+          <div class="part">
+            <div class="part-name">traffic-simulator<small>:8004 · Day 5</small></div>
+            <div class="part-desc">Drives seeded, reproducible ad-request load through the platform, reports the resulting impressions and clicks, and <b>injects failures by genuinely rewriting campaign configuration</b> &mdash; the source of every real incident.</div>
+          </div>
+          <div class="part">
+            <div class="part-name">ad-decision-service<small>:8002 · Day 3</small></div>
+            <div class="part-desc">The serving path. Takes a viewer and a slot, runs six filters in order &mdash; eligibility, targeting, brand safety, frequency cap, pacing, creative fit &mdash; and returns one ad or a <b>named</b> no-fill reason. Pure rules, injected state.</div>
+          </div>
+          <div class="part">
+            <div class="part-name">campaign-service<small>:8001 · Day 2</small></div>
+            <div class="part-desc">The source of truth for advertisers: campaigns, creatives, budgets, targeting and brand-safety rules. The only writer of its own schema &mdash; everyone else reads it over HTTP.</div>
+          </div>
+          <div class="part">
+            <div class="part-name">event-service<small>:8003 · Day 4</small></div>
+            <div class="part-desc">Ingests impressions and clicks, counting each <b>exactly once</b> using a caller-supplied id as the primary key. Delivery totals are computed on read, never stored as a rollup.</div>
+          </div>
+        </div>
+
+        <div class="parts-group">
+          <p class="parts-label g-store"><i></i>Storage &mdash; two kinds, on purpose</p>
+          <div class="part">
+            <div class="part-name">Redis<small>hot decision state</small></div>
+            <div class="part-desc">Frequency counts and pacing spend, per member and per campaign, under day-scoped keys that <b>delete themselves after 48 hours</b>. Read on every request, written the moment an ad fills.</div>
+          </div>
+          <div class="part">
+            <div class="part-name">PostgreSQL<small>system of record</small></div>
+            <div class="part-desc">Everything that must survive a restart and must never be wrong: campaigns behind campaign-service, and one durable row per delivered impression behind event-service.</div>
+          </div>
+          <div class="part">
+            <div class="part-name">Prometheus + Grafana<small>:9090 / :3000</small></div>
+            <div class="part-desc">Scrapes metrics from all five services every few seconds and draws two dashboards defined as files in the repo. This is the raw material the ops agents read during an incident.</div>
+          </div>
+        </div>
+
+        <div class="parts-group">
+          <p class="parts-label g-ai"><i></i>BELLWETHER &mdash; the AI layer</p>
+          <div class="part">
+            <div class="part-name">Context layer<small>Days 6&ndash;10</small></div>
+            <div class="part-desc">Ingests the whole repo &mdash; code, docs, contracts, decisions &mdash; chunks and embeds it, and stores it in a vector database so any agent can retrieve grounded answers with a citation. <b>Built through Day 7.</b></div>
+          </div>
+          <div class="part">
+            <div class="part-name">Dev agents<small>Days 11&ndash;15</small></div>
+            <div class="part-desc">Generate code and tests, review pull requests against the written standards, and validate a deployment after it lands. Each one scored against a fixed evaluation.</div>
+          </div>
+          <div class="part">
+            <div class="part-name">Ops agents<small>Days 16&ndash;20</small></div>
+            <div class="part-desc">Read logs and metrics during an incident, correlate them across services, and produce a root cause <b>with cited evidence</b> &mdash; graded on how often the cause is actually right.</div>
+          </div>
+          <div class="part">
+            <div class="part-name">Orchestrator<small>Days 21&ndash;25</small></div>
+            <div class="part-desc">Coordinates several agents on one task, resolves their disagreements, and stops to ask a human at the moments that matter.</div>
+          </div>
+        </div>
+
+        <div class="parts-group">
+          <p class="parts-label g-eval"><i></i>Cross-cutting</p>
+          <div class="part">
+            <div class="part-name">Eval harness<small>every level</small></div>
+            <div class="part-desc">Not bolted on at the end. Every capability's target is written before it is built, and its score is published on the running doc &mdash; whether it flatters or not.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="found">
+        <span class="tag">Plan vs. reality</span>
+        <h5>The architecture I built is not the one I sketched &mdash; and the differences are the point</h5>
+        <p>My Day-0 diagram was a clean serving-path sketch: request in, ad out, event reported. Building it changed the shape in three ways, and every change came from a requirement the sketch had not yet met.</p>
+        <p><b>Pacing spend moved into Redis.</b> I had it as private logic inside the decision service; it had to become shared state, because a budget spent on one request has to be visible to the next.</p>
+        <p><b>The simulator gained an edge to campaign-service.</b> This one is not on the original diagram at all. It is how a failure gets injected &mdash; a real <code>PATCH</code> to real configuration &mdash; and it is the single most important thing in the picture, because without it every ops-agent evaluation later would be graded against a fixture I wrote myself. I could not have drawn it on Day 0; the mechanism did not exist until Day 5.</p>
+        <p><b>Event totals are computed, never stored.</b> The sketch said "aggregate", which sounds like a maintained running total. A running total is a second copy of the truth that drifts, so I compute on read instead.</p>
+        <p>The sketch was simpler. The built version is busier and correct. Simpler was not better here &mdash; it was hiding the control plane that turned out to hold the whole thesis up.</p>
+      </div>
+
+      <h4 class="sub">The architecture in depth: one real ad request, traced end to end</h4>
+
+      <p>Everything above is the map. Here is the territory &mdash; a single ad request moving through the built system, using the <strong>actual three campaigns the platform seeds itself with on first start</strong>. No values are invented; every number, field and reason string below is what the code produces.</p>
+
+      <p>A viewer reaches an ad break. The simulator sends this to <code>ad-decision-service:8002</code>:</p>
+
+      <pre class="code"><span class="k">POST</span> /ad-request
+{
+  <span class="a">"member"</span>: { <span class="a">"member_id"</span>:<span class="g">"member-0042"</span>, <span class="a">"country"</span>:<span class="g">"US"</span>, <span class="a">"device_type"</span>:<span class="g">"tv"</span> },
+  <span class="a">"slot"</span>:   { <span class="a">"slot_id"</span>:<span class="g">"slot-118"</span>, <span class="a">"duration_seconds"</span>:30,
+              <span class="a">"content_rating"</span>:<span class="g">"TV-14"</span>, <span class="a">"content_categories"</span>:[<span class="g">"drama"</span>,<span class="g">"comedy"</span>] }
+}</pre>
+
+      <p>The decision service pulls the active campaign set from campaign-service, then runs three candidates through six filters in a fixed order &mdash; cheapest and most-eliminating first. Each column is one of the real seed campaigns:</p>
+
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr>
+          <th class="mono">Filter, in order</th>
+          <th class="mono">Acme Snacks<br><small>US/CA · all devices · cap 3 · $60/day</small></th>
+          <th class="mono">Northwind Motors<br><small>US/CA/GB/DE · TV only · cap 2 · $65/day</small></th>
+          <th class="mono">Vertex Hydration<br><small>US/BR/GB · mobile/tablet · cap 5 · $50/day</small></th>
+        </tr></thead>
+        <tbody>
+          <tr><td class="mono">1 · eligibility<br><small>active &amp; in flight?</small></td><td class="good">✓</td><td class="good">✓</td><td class="good">✓</td></tr>
+          <tr><td class="mono">2 · targeting<br><small>US · tv · TV-14?</small></td><td class="good">✓</td><td class="good">✓</td><td class="bad">✗ tv &notin; {mobile, tablet}</td></tr>
+          <tr><td class="mono">3 · brand safety<br><small>excluded &cap; slot cats?</small></td><td class="good">✓ {news,true-crime} &cap; {drama,comedy} = &empty;</td><td class="good">✓ {true-crime} &cap; {drama,comedy} = &empty;</td><td class="mono">&mdash;</td></tr>
+          <tr><td class="mono">4 · frequency cap<br><small>seen today &lt; cap?</small></td><td class="good">✓ 0 &lt; 3</td><td class="good">✓ 0 &lt; 2</td><td class="mono">&mdash;</td></tr>
+          <tr><td class="mono">5 · pacing<br><small>spent &lt; daily budget?</small></td><td class="good">✓ $0 &lt; $60</td><td class="good">✓ $0 &lt; $65</td><td class="mono">&mdash;</td></tr>
+          <tr><td class="mono">6 · creative fit<br><small>a creative &le; 30s?</small></td><td class="good">✓ 30s hero</td><td class="good">✓ 30s cutdown<br><small>(60s cinematic too long)</small></td><td class="mono">&mdash;</td></tr>
+          <tr><td class="mono"><strong>verdict</strong></td><td><strong class="good">eligible</strong><br><small>$60 remaining</small></td><td><strong class="good">eligible &#8594; wins</strong><br><small>$65 remaining</small></td><td><strong class="bad">targeting_mismatch</strong></td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>Two campaigns clear all six filters. The tiebreak is the one line of policy that matters most: <strong>the winner is the eligible campaign with the most daily budget remaining</strong> &mdash; <code>max(eligible, key=budget_remaining)</code> &mdash; not the first match. Northwind ($65 left) beats Acme ($60 left). Without that rule, whichever campaign sorted first would drain its whole day by mid-morning.</p>
+
+      <p>The response names the winner and &mdash; this is the part that pays off for the whole rest of the project &mdash; carries a <strong>trace of why every candidate landed where it did</strong>:</p>
+
+      <pre class="code">{
+  <span class="a">"request_id"</span>: <span class="g">"3f9c1a20-..."</span>,
+  <span class="a">"slot_id"</span>: <span class="g">"slot-118"</span>,
+  <span class="a">"filled"</span>: <span class="k">true</span>,
+  <span class="a">"ad"</span>: {
+    <span class="a">"campaign_name"</span>: <span class="g">"Premium sedan, connected TV only"</span>,
+    <span class="a">"advertiser"</span>:    <span class="g">"Northwind Motors"</span>,
+    <span class="a">"creative_name"</span>: <span class="g">"30s cutdown"</span>,
+    <span class="a">"asset_url"</span>:     <span class="g">"https://cdn.example/sedan-30.mp4"</span>,
+    <span class="a">"duration_seconds"</span>: 30,
+    <span class="a">"price_micros"</span>: 2000            <span class="c">// $0.002 per impression</span>
+  },
+  <span class="a">"no_fill_reason"</span>: <span class="k">null</span>,
+  <span class="a">"candidates_considered"</span>: 3,
+  <span class="a">"trace"</span>: [
+    { <span class="a">"campaign_name"</span>:<span class="g">"Premium sedan, connected TV only"</span>, <span class="a">"reason"</span>:<span class="g">"eligible"</span> },
+    { <span class="a">"campaign_name"</span>:<span class="g">"Wide-reach snack launch"</span>,          <span class="a">"reason"</span>:<span class="g">"eligible"</span> },
+    { <span class="a">"campaign_name"</span>:<span class="g">"Sports drink, mobile takeover"</span>,    <span class="a">"reason"</span>:<span class="g">"targeting_mismatch"</span> }
+  ],
+  <span class="a">"decision_latency_ms"</span>: 1.2
+}</pre>
+
+      <p>Two things happen the instant this fills, and they go to <strong>different stores for different reasons</strong>. The decision service writes the frequency count and pacing spend to <strong>Redis</strong> immediately, so the very next request for member-0042 sees the updated numbers. Separately, the simulator reports the impression to <code>event-service:8003</code>, carrying that same <code>request_id</code>, and it becomes one durable row in <strong>Postgres</strong>:</p>
+
+      <pre class="code"><span class="k">POST</span> /events  &#8594; event-service         <span class="c"># the durable record</span>
+{ <span class="a">"event_id"</span>:<span class="g">"7c2..."</span>, <span class="a">"event_type"</span>:<span class="g">"impression"</span>, <span class="a">"request_id"</span>:<span class="g">"3f9c1a20-..."</span>,
+  <span class="a">"campaign_id"</span>:<span class="g">"..."</span>, <span class="a">"member_id"</span>:<span class="g">"member-0042"</span>, <span class="a">"price_micros"</span>:2000 }
+&#8594; <span class="g">201 recorded</span>
+
+<span class="c"># meanwhile, already written to Redis at decision time:</span>
+freq:member-0042:&lt;campaign&gt;:2026-07-23   =  1     <span class="c"># TTL 48h, self-expiring</span>
+spend:&lt;campaign&gt;:2026-07-23              =  2000  <span class="c"># micros</span></pre>
+
+      <p>That split is deliberate and it is <a href="#" onclick="return false" style="border-bottom:1px solid var(--line)">ADR-0003</a> made concrete: <strong>Redis is what the pacer believed at decision time; Postgres is what was actually delivered.</strong> They can diverge &mdash; a lost Redis write, a dropped event &mdash; and the gap between them is not a bug, it is a number on the dashboard called reporting loss.</p>
+
+      <h4 class="sub">The data model, in real fields</h4>
+
+      <p>Two tables carry the durable state. Money is <code>Integer</code> micros everywhere &mdash; never a float &mdash; and a caller-supplied <code>event_id</code> is the primary key that makes double-counting impossible.</p>
+
+      <pre class="code"><span class="k">campaigns</span>  (Postgres, behind campaign-service)
+  id                     uuid   PK
+  name, advertiser       str
+  status                 str    <span class="c"># draft | active | paused</span>
+  budget_micros          int    <span class="c"># total; 32-bit — capped at $2,147 (found the hard way)</span>
+  daily_budget_micros    int
+  frequency_cap_per_day  int    <span class="c"># default 3</span>
+  targeting              json   <span class="c"># { countries, device_types, content_ratings }</span>
+  brand_safety_exclusions json  <span class="c"># ["news", "true-crime", ...]</span>
+  starts_at, ends_at     datetime
+  &#8627; creatives          (name, duration_seconds, asset_url)
+
+<span class="k">ad_events</span>  (Postgres, behind event-service — append-only)
+  event_id     uuid   PK     <span class="c"># chosen by the caller — the whole idempotency trick</span>
+  event_type   str           <span class="c"># impression | click</span>
+  request_id   uuid          <span class="c"># ties the event back to the decision that caused it</span>
+  campaign_id, creative_id  uuid
+  member_id, slot_id        str
+  price_micros int           <span class="c"># impression = 2000, click = 0</span>
+  occurred_at  datetime</pre>
+
+      <h4 class="sub">What the platform measures</h4>
+
+      <p>Nine metric families, scraped from all five services every few seconds. The one that does the most work is <code>ad_candidates_filtered_total</code> &mdash; because Day 3 gave every rejection a <em>name</em>, a fill-rate collapse becomes a single chart where you read the cause off whichever band grew.</p>
+
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th class="mono">Metric</th><th class="mono">Labels</th><th>The question it answers</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">ad_candidates_filtered_total</td><td class="mono">reason</td><td><strong>Why did candidates lose?</strong> targeting_mismatch, pacing_throttled, frequency_capped…</td></tr>
+          <tr><td class="mono">ad_decisions_total</td><td class="mono">outcome</td><td>Fill rate &mdash; filled vs no-fill</td></tr>
+          <tr><td class="mono">ad_events_total</td><td class="mono">event_type</td><td>Impressions and clicks ingested &#8594; click-through rate</td></tr>
+          <tr><td class="mono">ad_events_duplicate_total</td><td class="mono">&mdash;</td><td>Retries the primary key rejected &mdash; dedup working</td></tr>
+          <tr><td class="mono">ad_spend_micros_total</td><td class="mono">&mdash;</td><td>Money actually delivered</td></tr>
+          <tr><td class="mono">http_request_duration_seconds</td><td class="mono">service</td><td>p95 latency &mdash; is it load, or a fault?</td></tr>
+          <tr><td class="mono">sim_scenario_info</td><td class="mono">scenario</td><td>Which failure mode is currently injected</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h4 class="sub">A failure, with the actual numbers</h4>
+
+      <p>This is where the whole "real, not mocked" argument cashes out. To inject a bad config deploy, the simulator makes a genuine call to campaign-service &mdash; for <em>every</em> campaign:</p>
+
+      <pre class="code"><span class="k">PATCH</span> /campaigns/{id}  &#8594; campaign-service      <span class="c"># repeated for all 3</span>
+{ <span class="a">"targeting"</span>: { <span class="a">"countries"</span>:[<span class="g">"AQ"</span>], <span class="a">"device_types"</span>:[], <span class="a">"content_ratings"</span>:[] } }
+                    <span class="c">// AQ = Antarctica. No viewer is ever there.</span></pre>
+
+      <p>Nothing is faked. The decision service reads the changed configuration and correctly declines to serve, because the targeting genuinely no longer matches anyone. On the running stack, the effect was measured:</p>
+
+      <pre class="code">fill rate     <span class="g">43%</span>  &#8594;  <span class="bad">2%</span>          <span class="c"># within seconds of the PATCH</span>
+loss reason   the <span class="bad">targeting_mismatch</span> band takes over the "why candidates lost" chart</pre>
+
+      <p>Recovery is equally real: the <code>steady</code> scenario <code>PATCH</code>es the original targeting back. It is not an undo flag &mdash; it is the same remediation an ops agent will be asked to recommend on Day 19. And a second failure mode, <code>budget_runaway</code>, is how the platform found a defect in <em>itself</em> on day one:</p>
+
+      <pre class="code"><span class="k">PATCH</span>  daily_budget_micros  &#8594;  9,000,000,000
+&#8594; <span class="bad">500</span>  NumericValueOutOfRange   <span class="c"># budget_micros is a 32-bit Integer,</span>
+                              <span class="c"># capped at 2,147,483,647 micros = $2,147/day</span></pre>
+
+      <p>A real ceiling nobody knew existed, surfaced by pointing real load at a real platform &mdash; and, because it first escaped as a bare 500 in violation of the project's own standard, now a typed <code>422</code>. That is the entire thesis in one incident: <strong>a system that is genuinely running finds the things a plan cannot.</strong></p>
+
     </div>
   </section>
 
