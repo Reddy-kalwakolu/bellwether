@@ -70,6 +70,18 @@ def test_a_very_long_chunk_is_penalised_against_a_focused_one() -> None:
     assert result.hits[0].chunk_id == "a"
 
 
+def test_an_ordinary_long_word_is_not_treated_as_an_identifier() -> None:
+    # "observability" is thirteen characters of plain English. If length alone
+    # qualified it, the largest boost in the table would fire on prose, inflating
+    # the free baseline that Day 8 measures the LLM reranker against.
+    hits = [
+        _hit("a", 0.9, text="unrelated prose about caching"),
+        _hit("b", 0.5, text="observability is covered in the runbook"),
+    ]
+    result = HeuristicReranker().rerank("observability", hits, limit=2)
+    assert result.hits[0].chunk_id == "a"
+
+
 def test_preserves_the_fused_order_when_no_feature_fires() -> None:
     hits = [_hit("a", 0.9), _hit("b", 0.8), _hit("c", 0.7)]
     result = HeuristicReranker().rerank("kubernetes helm chart", hits, limit=3)

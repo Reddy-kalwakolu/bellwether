@@ -78,7 +78,14 @@ class HeuristicReranker:
             return RerankResult(hits=[], usage=None)
 
         terms = tokenize(query)
-        identifiers = {term for term in terms if "_" in term or "-" in term or len(term) >= 8}
+        # A separator is the only honest signal that a term is a name rather than a
+        # word. A length threshold looks tempting — it would catch `addecisionservice`,
+        # whose capitals tokenization has already discarded — but it also hands the
+        # largest boost in the table to "frequency", "kubernetes" and "observability".
+        # That would inflate the free baseline on ordinary prose, and this day exists
+        # to compare that baseline against an LLM honestly. camelCase wholes still
+        # reach the top via BM25's IDF; they just do not collect a bonus here.
+        identifiers = {term for term in terms if any(mark in term for mark in "_-./")}
         wants_why = bool(WHY_WORDS & set(terms))
 
         scored: list[tuple[float, int, SearchHit]] = []
