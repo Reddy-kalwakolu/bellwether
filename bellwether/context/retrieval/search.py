@@ -40,6 +40,10 @@ class SearchConfig:
     candidate_depth: int = 20
 
 
+class SearchError(RuntimeError):
+    """The search was asked for something incoherent."""
+
+
 class SearchService:
     """Retrieve, fuse, rerank — with every stage a parameter."""
 
@@ -59,6 +63,17 @@ class SearchService:
         """The best `config.limit` chunks for `query` under `config.mode`."""
         if not query.strip():
             return []
+
+        # The query is embedded by `self.embedder` but looked up under
+        # `config.engine`. Nothing else ties those two together, so a caller that
+        # iterates engines — which the eval harness does — could search one engine's
+        # vectors with another engine's query vector and get plausible, wrong
+        # numbers. Fail loudly instead.
+        if config.engine != self.embedder.spec.name:
+            raise SearchError(
+                f"config.engine is {config.engine!r} but the query would be embedded "
+                f"by {self.embedder.spec.name!r}"
+            )
 
         depth = max(config.candidate_depth, config.limit)
 

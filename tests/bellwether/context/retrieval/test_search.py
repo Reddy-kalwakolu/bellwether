@@ -5,12 +5,19 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pytest
+
 from bellwether.context.chunking.models import Chunk, build_chunk
 from bellwether.context.documents import build_document
 from bellwether.context.embedders import HashingEmbedder
 from bellwether.context.retrieval.bm25 import BM25Index
 from bellwether.context.retrieval.rerank import HeuristicReranker
-from bellwether.context.retrieval.search import SearchConfig, SearchMode, SearchService
+from bellwether.context.retrieval.search import (
+    SearchConfig,
+    SearchError,
+    SearchMode,
+    SearchService,
+)
 from bellwether.context.vectors import InMemoryVectorStore
 
 NOW = datetime(2026, 7, 23, 12, 0, tzinfo=UTC)
@@ -94,6 +101,16 @@ def test_hybrid_llm_without_a_reranker_falls_back_to_hybrid() -> None:
         "budget_micros", SearchConfig(mode=SearchMode.HYBRID_LLM, engine="hashing", limit=1)
     )
     assert len(hits) == 1
+
+
+def test_an_engine_the_embedder_cannot_produce_is_refused() -> None:
+    # The eval harness iterates engines. If config.engine drifts from the embedder,
+    # the store gets one engine's vectors queried with another's vector and returns
+    # plausible nonsense. Loud failure beats a quiet wrong number.
+    with pytest.raises(SearchError, match="gemini"):
+        _service().search(
+            "budget_micros", SearchConfig(mode=SearchMode.DENSE, engine="gemini", limit=2)
+        )
 
 
 def test_results_are_reproducible_across_calls() -> None:
