@@ -315,7 +315,7 @@
     <p class="eyebrow"><span class="tick">&#9656;</span> A LIVING ACCOUNT · EXTENDED EVERY BUILD DAY</p>
     <h1 class="mark">I'm building an AI<br>platform that writes code,<br>reviews it, and <em>runs it</em></h1>
     <p class="lede"><strong>BELLWETHER is an AI layer for an engineering team.</strong> Agents that generate code and tests, review pull requests against written standards, and diagnose production incidents from real logs and metrics &mdash; all grounded in this team's own decisions rather than generic training data, and every one of them carrying a published score.</p>
-    <p class="lede">But an AI layer is only worth as much as what you can test it against. So I am building it something real to operate on: <strong>a small ads platform</strong> &mdash; four services deciding which advert to serve, recording what got delivered, and breaking in ways I can cause on demand. <strong>BELLWETHER is the AI. The ads platform is what it operates.</strong> I picked ad serving because it is the domain of the team I am aiming at, and because its real outages are configuration mistakes &mdash; which leaves an actual cause in an actual database for an agent to find.</p>
+    <p class="lede">An AI layer is only worth what you can test it against. So I am also building the thing it operates on: <strong>a small ads platform</strong> &mdash; four services that decide which advert to serve, record what got delivered, and break in ways I can cause on demand. <strong>BELLWETHER is the AI. The ads platform is what it operates.</strong> Ad serving is the team's domain, and its real outages are configuration mistakes &mdash; the kind that leave an actual cause in an actual database for an agent to find.</p>
     <p class="lede">I'm building it in thirty days and writing it down as I go: the method I follow each day, every tool and why I picked it over the alternative, the architecture at each stage, every decision and the condition that would reverse it, and each time reality proved me wrong.</p>
     <p class="lede"><strong>This page currently covers Day 0 through Day 07.</strong> I write nothing with hindsight &mdash; I record the mistakes on the day I make them, and I leave them on the page.</p>
 
@@ -387,7 +387,7 @@
   <section class="reel" id="reel-1">
     <div class="measure">
       <p class="reel-num">Reel one</p>
-      <h2>The setup</h2>
+      <h2>Setting the stage</h2>
       <p>Before a single line of the product exists, three things have to be settled: what problem this is actually solving, how the work will be done every single day, and what it will be built with. Everything afterwards is consequences.</p>
       <div class="reel-rule"></div>
     </div>
@@ -776,7 +776,7 @@ E   ModuleNotFoundError: No module named <span class="g">'substrate.event_servic
 
       <pre class="code"><span class="c"># WRONG &#8212; reports success even when mypy fails.</span>
 <span class="c"># In a pipeline the surviving exit code is tail's, and tail always succeeds.</span>
-uv run mypy tests substrate bellwether <span class="k">|</span> tail -2 <span class="k">&&</span> git commit
+uv run mypy tests substrate platform bellwether <span class="k">|</span> tail -2 <span class="k">&&</span> git commit
 
 <span class="c"># RIGHT &#8212; each gate's own exit code is visible and fatal.</span>
 uv run ruff check .
@@ -784,7 +784,7 @@ uv run ruff format --check .
 uv run mypy tests substrate platform bellwether
 uv run pytest</pre>
 
-      <p class="caption">This exact mistake shipped nine type errors on Day 7 &mdash; in a project whose own Day 4 notes warn about it, written by the person who wrote the warning.</p>
+      <p class="caption">This exact mistake shipped nine type errors on Day 7. My own Day 4 notes warn against it. I wrote both.</p>
 
       <h4 class="sub">Step 4 &middot; The tests must pass with everything switched off</h4>
 
@@ -1054,24 +1054,7 @@ $ uv run pytest                                          <span class="g">289 pas
         </div>
       </div>
 
-      <h4 class="sub">The AI layer, added Day 6&ndash;7</h4>
-      <div class="tools">
-        <div class="tool">
-          <div class="tool-head"><span class="tool-name">Qdrant</span><span class="tool-role">vector database</span></div>
-          <p>Stores the numerical representations of text and finds the nearest matches. Written in Rust, so it is light on memory.</p>
-          <p class="versus"><b>Instead of ChromaDB</b> (which the original plan named): Qdrant can hold <em>several</em> vectors per record under different names, which is what makes comparing four embedding models on identical input possible at all. See ADR-0008.</p>
-        </div>
-        <div class="tool">
-          <div class="tool-head"><span class="tool-name">Gemini &amp; Voyage</span><span class="tool-role">hosted embeddings</span></div>
-          <p>Convert text into vectors, on the provider's hardware. Gemini currently leads the public quality benchmark.</p>
-          <p class="versus"><b>Instead of running a model locally:</b> two cents for the whole corpus, versus 2.5&nbsp;GB of machine-learning libraries competing for memory with Docker on a 16&nbsp;GB laptop. See ADR-0007 &mdash; the original plan had this backwards.</p>
-        </div>
-        <div class="tool">
-          <div class="tool-head"><span class="tool-name">Model2Vec (potion)</span><span class="tool-role">local embeddings</span></div>
-          <p>A model whose word-vectors are precomputed, so using it is a lookup and an average rather than running a neural network.</p>
-          <p class="versus"><b>Instead of sentence-transformers:</b> eleven small packages and no PyTorch, versus 2.5&nbsp;GB &mdash; at roughly 82% of the quality. Free, offline, and needs no graphics card.</p>
-        </div>
-      </div>
+      <p>The AI layer adds three tools of its own &mdash; a vector database and two embedding models. They arrive in Reel three, alongside Day 7, where the ideas they depend on are explained first.</p>
     </div>
   </section>
 
@@ -1081,6 +1064,8 @@ $ uv run pytest                                          <span class="g">289 pas
       <p class="reel-num">Reel two &middot; Days 1&ndash;5</p>
       <h2>Building the world</h2>
       <p>Five days to build a small ads platform that behaves like a real one: it serves adverts, records what it delivered, shows you what it is doing, and can be broken on demand in ways that are genuinely broken.</p>
+      <p>I call this half the <strong>substrate</strong> &mdash; the layer underneath the AI: real enough to serve, log and break, so everything built on top of it is measured against something true.</p>
+      <p>First the map &mdash; the finished architecture in one reference chapter. Then the five days that built it, one at a time.</p>
       <div class="reel-rule"></div>
     </div>
   </section>
@@ -1091,7 +1076,17 @@ $ uv run pytest                                          <span class="g">289 pas
       <p class="day-eyebrow">Reference &middot; the substrate in full</p>
       <h3 class="hd">The architecture, in depth</h3>
 
-      <p>Reel two builds the ads platform one day at a time. Before that story starts, here is the finished thing as a whole &mdash; the real services, the real data flowing between them, and one real request traced end to end. Treat it as a map: skim it now for the shape, and come back when a later day zooms in on one part.</p>
+      <p>Reel two tells the build one day at a time. This chapter is the map you read it with &mdash; the finished platform as a whole, in five short passes:</p>
+
+      <ul>
+        <li><strong>The shape</strong> &mdash; how the two halves connect, in one diagram</li>
+        <li><strong>The parts</strong> &mdash; every service and store, one line each</li>
+        <li><strong>One real request</strong> &mdash; traced end to end, no invented values</li>
+        <li><strong>The data</strong> &mdash; what is stored where, and what is measured</li>
+        <li><strong>One real failure</strong> &mdash; injected, measured, recovered</li>
+      </ul>
+
+      <p>Skim it for the shape now; come back when a later day zooms in on one part.</p>
 
       <figure class="figure">
         <div class="figure-head">
@@ -1168,9 +1163,13 @@ flowchart TB
     class EVAL evalcls;
         </pre>
         <figcaption class="figure-cap">
-          <strong>Follow the numbers through the substrate.</strong> The simulator asks the decision service for an ad ①; the decision service reads campaigns from campaign-service and checks frequency caps and pacing spend in Redis, then returns the ad ②; and <em>the simulator</em> &mdash; not the decision service &mdash; reports the resulting impression to event-service ③, carrying the decision's request-id so the two tie together. The simulator also owns the one edge everything later depends on: it seeds the campaigns, and it <em>injects failures by genuinely PATCHing them</em> through campaign-service's public API (ADR-0005) &mdash; which is where stream ③ comes from. That whole system then falls out into three streams: its <strong>source and docs</strong> become the context layer (Days 6&#8211;10), its <strong>logs and metrics</strong> are what the ops agents read (Days 16&#8211;20), and its <strong>injected incidents</strong> are the thing to diagnose &mdash; a genuinely broken configuration, not a fixture. The eval harness scores every capability and publishes the number, flattering or not.
+          <strong>Follow the numbers.</strong> ① The simulator asks the decision service for an ad. ② The decision service reads campaigns from campaign-service, checks caps and spend in Redis, and returns one ad. ③ The <em>simulator</em> reports the resulting impression to event-service, quoting the same request-id, so decision and delivery tie together.
         </figcaption>
       </figure>
+
+      <p>One edge matters more than all the others: the simulator seeds the campaigns, and it injects failures by <strong>genuinely PATCHing them through campaign-service's public API</strong> (ADR-0005). Every incident an agent later diagnoses starts on that edge &mdash; a genuinely broken configuration, not a fixture.</p>
+
+      <p>The substrate then feeds the AI layer three things. Its <strong>source and docs</strong> become the context layer (Days 6&ndash;10). Its <strong>logs and metrics</strong> are what the ops agents read (Days 16&ndash;20). Its <strong>injected incidents</strong> are the thing to diagnose. The eval harness scores every capability and publishes the number, flattering or not.</p>
 
       <h4 class="sub">What each part is, in one line</h4>
 
@@ -1250,9 +1249,9 @@ flowchart TB
         <p>The sketch was simpler. The built version is busier and correct. Simpler was not better here &mdash; it was hiding the control plane that turned out to hold the whole thesis up.</p>
       </div>
 
-      <h4 class="sub">The architecture in depth: one real ad request, traced end to end</h4>
+      <h4 class="sub">One real ad request, traced end to end</h4>
 
-      <p>Everything above is the map. Here is the territory &mdash; a single ad request moving through the built system, using the <strong>actual three campaigns the platform seeds itself with on first start</strong>. No values are invented; every number, field and reason string below is what the code produces.</p>
+      <p>Now the territory. One ad request moves through the running system, against the <strong>three campaigns the platform seeds itself with on first start</strong>. Nothing below is invented &mdash; every number, field and reason string is what the code produces.</p>
 
       <p>A viewer reaches an ad break. The simulator sends this to <code>ad-decision-service:8002</code>:</p>
 
@@ -1351,7 +1350,7 @@ spend:&lt;campaign&gt;:2026-07-23              =  2000  <span class="c"># micros
 
       <h4 class="sub">What the platform measures</h4>
 
-      <p>Nine metric families, scraped from all five services every few seconds. The one that does the most work is <code>ad_candidates_filtered_total</code> &mdash; because Day 3 gave every rejection a <em>name</em>, a fill-rate collapse becomes a single chart where you read the cause off whichever band grew.</p>
+      <p>Prometheus scrapes every service every few seconds. These are the metrics that matter. The one that does the most work is <code>ad_candidates_filtered_total</code> &mdash; because Day 3 gave every rejection a <em>name</em>, a fill-rate collapse becomes a single chart where you read the cause off whichever band grew.</p>
 
       <div class="tbl-scroll">
       <table class="tbl">
@@ -1949,6 +1948,25 @@ flowchart TB
       <p>Gemini understood the question. The local model found the right neighbourhood. The keyword-only baseline found nothing meaningful, <strong>because not one word of the question appears in the answer.</strong></p>
 
       <p>That gap is the entire argument for paying for embeddings &mdash; measured on this corpus, not quoted from a vendor's chart.</p>
+
+      <h4 class="sub">The tools this level added, and what each beat</h4>
+      <div class="tools">
+        <div class="tool">
+          <div class="tool-head"><span class="tool-name">Qdrant</span><span class="tool-role">vector database</span></div>
+          <p>Stores the numerical representations of text and finds the nearest matches. Written in Rust, so it is light on memory.</p>
+          <p class="versus"><b>Instead of ChromaDB</b> (which the original plan named): Qdrant can hold <em>several</em> vectors per record under different names, which is what makes comparing four embedding models on identical input possible at all. See ADR-0008 above.</p>
+        </div>
+        <div class="tool">
+          <div class="tool-head"><span class="tool-name">Gemini &amp; Voyage</span><span class="tool-role">hosted embeddings</span></div>
+          <p>Convert text into vectors, on the provider's hardware. Gemini currently leads the public quality benchmark.</p>
+          <p class="versus"><b>Instead of running a model locally:</b> two cents for the whole corpus, versus 2.5&nbsp;GB of machine-learning libraries competing for memory with Docker on a 16&nbsp;GB laptop. See ADR-0007 above &mdash; the plan had this backwards until the corpus was measured.</p>
+        </div>
+        <div class="tool">
+          <div class="tool-head"><span class="tool-name">Model2Vec (potion)</span><span class="tool-role">local embeddings</span></div>
+          <p>A model whose word-vectors are precomputed, so using it is a lookup and an average rather than running a neural network.</p>
+          <p class="versus"><b>Instead of sentence-transformers:</b> eleven small packages and no PyTorch, versus 2.5&nbsp;GB &mdash; at roughly 82% of the quality. Free, offline, and needs no graphics card.</p>
+        </div>
+      </div>
 
       <div class="found">
         <span class="tag">What reality found &#8212; the most dangerous bug in eight days</span>
