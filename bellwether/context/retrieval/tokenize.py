@@ -68,8 +68,19 @@ MIN_LENGTH = 2
 
 
 def _keep(token: str) -> bool:
-    """A term is worth indexing if it is long enough and not a stopword."""
-    return len(token) >= MIN_LENGTH and token not in STOPWORDS
+    """A term is worth indexing if it is long enough and not a stopword.
+
+    Membership is tested against the token stripped of its wrapping underscores, so
+    markdown emphasis — `_the_`, which this corpus is full of — is filtered like the
+    stopword it is rather than slipping in as a distinct term. The cost is that
+    operator dunders like `__or__` go with it. That is the right side of the trade:
+    nobody searches for `__or__`, and every italicised word in every ADR would
+    otherwise become its own index entry.
+
+    The bare-length check also drops a lone `__`, which markdown uses as a rule.
+    """
+    bare = token.strip("_")
+    return len(token) >= MIN_LENGTH and len(bare) >= MIN_LENGTH and bare not in STOPWORDS
 
 
 def tokenize(text: str) -> list[str]:

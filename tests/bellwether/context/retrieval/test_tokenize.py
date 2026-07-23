@@ -55,6 +55,16 @@ def test_trailing_sentence_punctuation_is_still_stripped() -> None:
     assert "budget." not in tokenize("the budget.")
 
 
+def test_an_underscore_wrapped_stopword_is_still_dropped() -> None:
+    # Markdown italics. Allowing `_` to start a token must not let `_the_` in as a
+    # term distinct from the stopword `the`.
+    assert tokenize("_the_") == []
+
+
+def test_a_bare_underscore_rule_is_not_a_term() -> None:
+    assert tokenize("__") == []
+
+
 def test_exact_token_contributes_more_frequency_than_its_parts() -> None:
     # The whole plus both parts: three tokens from one identifier. This is what
     # gives an exact-identifier query its edge over a merely-related chunk.
