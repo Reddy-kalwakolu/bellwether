@@ -876,6 +876,18 @@ def test_a_very_long_chunk_is_penalised_against_a_focused_one() -> None:
     assert result.hits[0].chunk_id == "a"
 
 
+def test_an_ordinary_long_word_is_not_treated_as_an_identifier() -> None:
+    # "observability" is thirteen characters of plain English. If length alone
+    # qualified it, the largest boost in the table would fire on prose, inflating
+    # the free baseline that Day 8 measures the LLM reranker against.
+    hits = [
+        _hit("a", 0.9, text="unrelated prose about caching"),
+        _hit("b", 0.5, text="observability is covered in the runbook"),
+    ]
+    result = HeuristicReranker().rerank("observability", hits, limit=2)
+    assert result.hits[0].chunk_id == "a"
+
+
 def test_preserves_the_fused_order_when_no_feature_fires() -> None:
     hits = [_hit("a", 0.9), _hit("b", 0.8), _hit("c", 0.7)]
     result = HeuristicReranker().rerank("kubernetes helm chart", hits, limit=3)
@@ -1048,7 +1060,14 @@ class HeuristicReranker:
             return RerankResult(hits=[], usage=None)
 
         terms = tokenize(query)
-        identifiers = {term for term in terms if "_" in term or "-" in term or len(term) >= 8}
+        # A separator is the only honest signal that a term is a name rather than a
+        # word. A length threshold looks tempting — it would catch `addecisionservice`,
+        # whose capitals tokenization has already discarded — but it also hands the
+        # largest boost in the table to "frequency", "kubernetes" and "observability".
+        # That would inflate the free baseline on ordinary prose, and this day exists
+        # to compare that baseline against an LLM honestly. camelCase wholes still
+        # reach the top via BM25's IDF; they just do not collect a bonus here.
+        identifiers = {term for term in terms if any(mark in term for mark in "_-./")}
         wants_why = bool(WHY_WORDS & set(terms))
 
         scored: list[tuple[float, int, SearchHit]] = []
