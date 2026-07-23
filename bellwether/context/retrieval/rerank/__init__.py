@@ -9,10 +9,13 @@ from bellwether.context.retrieval.rerank.base import (
     RerankResult,
 )
 from bellwether.context.retrieval.rerank.heuristic import HeuristicReranker, HeuristicWeights
+from bellwether.context.retrieval.rerank.llm import RANKING_SCHEMA, LLMReranker
 
 __all__ = [
+    "RANKING_SCHEMA",
     "HeuristicReranker",
     "HeuristicWeights",
+    "LLMReranker",
     "RerankError",
     "RerankResult",
     "Reranker",
