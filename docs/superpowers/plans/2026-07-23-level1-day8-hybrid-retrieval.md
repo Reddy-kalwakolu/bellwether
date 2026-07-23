@@ -146,6 +146,16 @@ def test_trailing_sentence_punctuation_is_still_stripped() -> None:
     assert "budget." not in tokenize("the budget.")
 
 
+def test_an_underscore_wrapped_stopword_is_still_dropped() -> None:
+    # Markdown italics. Allowing `_` to start a token must not let `_the_` in as a
+    # term distinct from the stopword `the`.
+    assert tokenize("_the_") == []
+
+
+def test_a_bare_underscore_rule_is_not_a_term() -> None:
+    assert tokenize("__") == []
+
+
 def test_exact_token_contributes_more_frequency_than_its_parts() -> None:
     # The whole plus both parts: three tokens from one identifier. This is what
     # gives an exact-identifier query its edge over a merely-related chunk.
@@ -212,8 +222,19 @@ MIN_LENGTH = 2
 
 
 def _keep(token: str) -> bool:
-    """A term is worth indexing if it is long enough and not a stopword."""
-    return len(token) >= MIN_LENGTH and token not in STOPWORDS
+    """A term is worth indexing if it is long enough and not a stopword.
+
+    Membership is tested against the token stripped of its wrapping underscores, so
+    markdown emphasis — `_the_`, which this corpus is full of — is filtered like the
+    stopword it is rather than slipping in as a distinct term. The cost is that
+    operator dunders like `__or__` go with it. That is the right side of the trade:
+    nobody searches for `__or__`, and every italicised word in every ADR would
+    otherwise become its own index entry.
+
+    The bare-length check also drops a lone `__`, which markdown uses as a rule.
+    """
+    bare = token.strip("_")
+    return len(token) >= MIN_LENGTH and len(bare) >= MIN_LENGTH and bare not in STOPWORDS
 
 
 def tokenize(text: str) -> list[str]:
@@ -242,7 +263,7 @@ def tokenize(text: str) -> list[str]:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `python -m uv run pytest tests/bellwether/context/retrieval/test_tokenize.py -v`
-Expected: PASS, 10 passed
+Expected: PASS, 12 passed
 
 - [ ] **Step 5: Run the gates, each unpiped**
 
@@ -3453,7 +3474,7 @@ def format_markdown(results: Sequence[ConfigurationResult]) -> str:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `python -m uv run pytest tests/bellwether/eval/test_report.py -v`
-Expected: PASS, 10 passed
+Expected: PASS, 8 passed
 
 - [ ] **Step 5: Run the gates, each unpiped**
 
