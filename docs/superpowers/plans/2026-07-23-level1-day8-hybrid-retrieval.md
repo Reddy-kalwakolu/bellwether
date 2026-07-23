@@ -2232,7 +2232,6 @@ between rows would make the table a comparison of accidents.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -2307,11 +2306,6 @@ class SearchService:
         """Embed the query with the same engine that embedded the corpus."""
         vector = self.embedder.embed([query]).vectors[0]
         return self.store.search(engine, vector, limit=limit)
-
-
-def rerank_modes() -> Sequence[SearchMode]:
-    """The modes that require a reranker to mean anything."""
-    return (SearchMode.HYBRID_HEURISTIC, SearchMode.HYBRID_LLM)
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
