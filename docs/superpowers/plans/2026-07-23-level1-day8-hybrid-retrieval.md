@@ -1144,7 +1144,7 @@ __all__ = [
 - [ ] **Step 6: Run test to verify it passes**
 
 Run: `python -m uv run pytest tests/bellwether/context/retrieval/rerank/test_heuristic.py -v`
-Expected: PASS, 10 passed
+Expected: PASS, 11 passed
 
 - [ ] **Step 7: Run the gates, each unpiped**
 
