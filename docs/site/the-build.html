@@ -195,6 +195,36 @@
     font-size: .9rem; color: var(--dim);
   }
   .figure-cap strong { color: var(--text); }
+
+  /* ---- component glossary: what each part of the architecture is ---- */
+  .parts { margin: 1.6rem 0; }
+  .parts-group { margin-bottom: 1.6rem; }
+  .parts-label {
+    font-family: var(--font-mono); font-size: .64rem; letter-spacing: .18em;
+    text-transform: uppercase; margin-bottom: .8rem; display: flex; align-items: center; gap: .5rem;
+  }
+  .parts-label i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  .parts-label.g-sub { color: #d98a7a; }
+  .parts-label.g-sub i { background: #b8321f; }
+  .parts-label.g-store { color: #c79aa2; }
+  .parts-label.g-store i { background: #8f5a63; }
+  .parts-label.g-ai { color: #7bbf9c; }
+  .parts-label.g-ai i { background: #2f6f4f; }
+  .parts-label.g-eval { color: var(--found); }
+  .parts-label.g-eval i { background: var(--found); }
+  .part {
+    display: grid; grid-template-columns: 210px 1fr; gap: 1.1rem;
+    padding: .75rem 0; border-top: 1px solid var(--panel-2); align-items: baseline;
+  }
+  .part:first-of-type { border-top: 0; }
+  .part-name { font-family: var(--font-mono); font-size: .82rem; color: var(--text); }
+  .part-name small { display: block; color: var(--dim); font-size: .7rem; margin-top: .15rem; letter-spacing: .04em; }
+  .part-desc { color: var(--dim); font-size: .93rem; }
+  .part-desc b { color: var(--text); font-weight: 600; }
+  @media (max-width: 640px) {
+    .part { grid-template-columns: 1fr; gap: .3rem; }
+  }
+
   pre.code {
     background: var(--panel-2); border: 1px solid var(--line); border-left: 3px solid var(--line);
     border-radius: 8px; padding: 1rem 1.15rem; overflow-x: auto; margin: 1.2rem 0;
@@ -628,6 +658,84 @@ flowchart TB
           <strong>Follow the numbers through the substrate.</strong> The simulator asks the decision service for an ad ①; the decision service reads campaigns from campaign-service and checks frequency caps and pacing spend in Redis, then returns the ad ②; and <em>the simulator</em> &mdash; not the decision service &mdash; reports the resulting impression to event-service ③, carrying the decision's request-id so the two tie together. The simulator also owns the one edge everything later depends on: it seeds the campaigns, and it <em>injects failures by genuinely PATCHing them</em> through campaign-service's public API (ADR-0005) &mdash; which is where stream ③ comes from. That whole system then falls out into three streams: its <strong>source and docs</strong> become the context layer (Days 6&#8211;10), its <strong>logs and metrics</strong> are what the ops agents read (Days 16&#8211;20), and its <strong>injected incidents</strong> are the thing to diagnose &mdash; a genuinely broken configuration, not a fixture. The eval harness scores every capability and publishes the number, flattering or not.
         </figcaption>
       </figure>
+
+      <h4 class="sub">What each part is, in one line</h4>
+
+      <div class="parts">
+        <div class="parts-group">
+          <p class="parts-label g-sub"><i></i>The substrate &mdash; the ads platform</p>
+          <div class="part">
+            <div class="part-name">traffic-simulator<small>:8004 · Day 5</small></div>
+            <div class="part-desc">Drives seeded, reproducible ad-request load through the platform, reports the resulting impressions and clicks, and <b>injects failures by genuinely rewriting campaign configuration</b> &mdash; the source of every real incident.</div>
+          </div>
+          <div class="part">
+            <div class="part-name">ad-decision-service<small>:8002 · Day 3</small></div>
+            <div class="part-desc">The serving path. Takes a viewer and a slot, runs six filters in order &mdash; eligibility, targeting, brand safety, frequency cap, pacing, creative fit &mdash; and returns one ad or a <b>named</b> no-fill reason. Pure rules, injected state.</div>
+          </div>
+          <div class="part">
+            <div class="part-name">campaign-service<small>:8001 · Day 2</small></div>
+            <div class="part-desc">The source of truth for advertisers: campaigns, creatives, budgets, targeting and brand-safety rules. The only writer of its own schema &mdash; everyone else reads it over HTTP.</div>
+          </div>
+          <div class="part">
+            <div class="part-name">event-service<small>:8003 · Day 4</small></div>
+            <div class="part-desc">Ingests impressions and clicks, counting each <b>exactly once</b> using a caller-supplied id as the primary key. Delivery totals are computed on read, never stored as a rollup.</div>
+          </div>
+        </div>
+
+        <div class="parts-group">
+          <p class="parts-label g-store"><i></i>Storage &mdash; two kinds, on purpose</p>
+          <div class="part">
+            <div class="part-name">Redis<small>hot decision state</small></div>
+            <div class="part-desc">Frequency counts and pacing spend, per member and per campaign, under day-scoped keys that <b>delete themselves after 48 hours</b>. Read on every request, written the moment an ad fills.</div>
+          </div>
+          <div class="part">
+            <div class="part-name">PostgreSQL<small>system of record</small></div>
+            <div class="part-desc">Everything that must survive a restart and must never be wrong: campaigns behind campaign-service, and one durable row per delivered impression behind event-service.</div>
+          </div>
+          <div class="part">
+            <div class="part-name">Prometheus + Grafana<small>:9090 / :3000</small></div>
+            <div class="part-desc">Scrapes metrics from all five services every few seconds and draws two dashboards defined as files in the repo. This is the raw material the ops agents read during an incident.</div>
+          </div>
+        </div>
+
+        <div class="parts-group">
+          <p class="parts-label g-ai"><i></i>BELLWETHER &mdash; the AI layer</p>
+          <div class="part">
+            <div class="part-name">Context layer<small>Days 6&ndash;10</small></div>
+            <div class="part-desc">Ingests the whole repo &mdash; code, docs, contracts, decisions &mdash; chunks and embeds it, and stores it in a vector database so any agent can retrieve grounded answers with a citation. <b>Built through Day 7.</b></div>
+          </div>
+          <div class="part">
+            <div class="part-name">Dev agents<small>Days 11&ndash;15</small></div>
+            <div class="part-desc">Generate code and tests, review pull requests against the written standards, and validate a deployment after it lands. Each one scored against a fixed evaluation.</div>
+          </div>
+          <div class="part">
+            <div class="part-name">Ops agents<small>Days 16&ndash;20</small></div>
+            <div class="part-desc">Read logs and metrics during an incident, correlate them across services, and produce a root cause <b>with cited evidence</b> &mdash; graded on how often the cause is actually right.</div>
+          </div>
+          <div class="part">
+            <div class="part-name">Orchestrator<small>Days 21&ndash;25</small></div>
+            <div class="part-desc">Coordinates several agents on one task, resolves their disagreements, and stops to ask a human at the moments that matter.</div>
+          </div>
+        </div>
+
+        <div class="parts-group">
+          <p class="parts-label g-eval"><i></i>Cross-cutting</p>
+          <div class="part">
+            <div class="part-name">Eval harness<small>every level</small></div>
+            <div class="part-desc">Not bolted on at the end. Every capability's target is written before it is built, and its score is published on the running doc &mdash; whether it flatters or not.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="found">
+        <span class="tag">Plan vs. reality</span>
+        <h5>The architecture I built is not the one I sketched &mdash; and the differences are the point</h5>
+        <p>My Day-0 diagram was a clean serving-path sketch: request in, ad out, event reported. Building it changed the shape in three ways, and every change came from a requirement the sketch had not yet met.</p>
+        <p><b>Pacing spend moved into Redis.</b> I had it as private logic inside the decision service; it had to become shared state, because a budget spent on one request has to be visible to the next.</p>
+        <p><b>The simulator gained an edge to campaign-service.</b> This one is not on the original diagram at all. It is how a failure gets injected &mdash; a real <code>PATCH</code> to real configuration &mdash; and it is the single most important thing in the picture, because without it every ops-agent evaluation later would be graded against a fixture I wrote myself. I could not have drawn it on Day 0; the mechanism did not exist until Day 5.</p>
+        <p><b>Event totals are computed, never stored.</b> The sketch said "aggregate", which sounds like a maintained running total. A running total is a second copy of the truth that drifts, so I compute on read instead.</p>
+        <p>The sketch was simpler. The built version is busier and correct. Simpler was not better here &mdash; it was hiding the control plane that turned out to hold the whole thesis up.</p>
+      </div>
 
       <h4 class="sub">Why an ads platform specifically</h4>
 
