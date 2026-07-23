@@ -29,6 +29,18 @@ WHY_PREFERRED = frozenset({"adr", "spec", "standards"})
 # Long enough that a single term match says little about what the chunk is about.
 SPRAWL_CHARS = 1200
 
+# How fast the incoming rank decays into the base score.
+#
+# The base must be scale-free. Using `hit.score` directly would make the boosts
+# meaningless or overwhelming depending on which mode fed us — RRF scores sit near
+# 0.016, BM25 scores reach 20 — which is the exact scale-mixing problem ADR-0009
+# rejects. So rank position is the only input.
+#
+# 0.05 sets the exchange rate: one rank position is worth about 0.05, so a single
+# exact-identifier match (0.5) is worth roughly ten places. That is the intended
+# strength — an identifier hit should climb past near-misses, not merely nudge.
+RANK_STEP = 0.05
+
 
 @dataclass(frozen=True)
 class HeuristicWeights:
@@ -72,8 +84,11 @@ class HeuristicReranker:
         scored: list[tuple[float, int, SearchHit]] = []
         for position, hit in enumerate(hits):
             # Base keeps the incoming order meaningful: a reranker that discards the
-            # retriever's opinion entirely is a retriever, not a reranker.
-            score = hit.score
+            # retriever's opinion entirely is a retriever, not a reranker. Decays
+            # with rank rather than with the incoming score, so the boosts below
+            # mean the same thing whichever mode produced these hits — and stays
+            # positive and monotonic however deep the candidate list runs.
+            score = 1.0 / (1.0 + position * RANK_STEP)
             score += self._boost(hit, terms, identifiers, wants_why)
             scored.append((score, position, hit))
 
@@ -99,9 +114,8 @@ class HeuristicReranker:
             boost += weights.identifier
 
         anchor = (hit.anchor or "").lower()
-        matching_terms = sum(1 for term in terms if term in anchor)
-        if matching_terms > 0:
-            boost += weights.anchor * matching_terms
+        if anchor and any(term in anchor for term in terms):
+            boost += weights.anchor
 
         if wants_why and hit.source_type in WHY_PREFERRED:
             boost += weights.source_prior
