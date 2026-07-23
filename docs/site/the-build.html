@@ -575,8 +575,10 @@ flowchart TB
         ADS <-->|"caps + spend"| RED
         ADS ==>|"② returns the ad"| SIM
         SIM ==>|"③ reports impression / click"| EV
+        SIM -->|"seeds campaigns ·&lt;br/&gt;PATCHes them to inject a failure"| CS
         CS --> PG
         EV --> PG
+        SIM -.-> OBS
         ADS -.-> OBS
         CS -.-> OBS
         EV -.-> OBS
@@ -623,7 +625,7 @@ flowchart TB
     class EVAL evalcls;
         </pre>
         <figcaption class="figure-cap">
-          <strong>Follow the numbers through the substrate.</strong> The simulator asks the decision service for an ad ①; the decision service reads campaigns from campaign-service and checks frequency caps and pacing spend in Redis, then returns the ad ②; and <em>the simulator</em> &mdash; not the decision service &mdash; reports the resulting impression to event-service ③, carrying the decision's request-id so the two tie together. That whole system then falls out into three streams: its <strong>source and docs</strong> become the context layer (Days 6&#8211;10), its <strong>logs and metrics</strong> are what the ops agents read (Days 16&#8211;20), and its <strong>injected incidents</strong> are the thing to diagnose &mdash; a genuinely broken configuration, not a fixture. The eval harness scores every capability and publishes the number, flattering or not.
+          <strong>Follow the numbers through the substrate.</strong> The simulator asks the decision service for an ad ①; the decision service reads campaigns from campaign-service and checks frequency caps and pacing spend in Redis, then returns the ad ②; and <em>the simulator</em> &mdash; not the decision service &mdash; reports the resulting impression to event-service ③, carrying the decision's request-id so the two tie together. The simulator also owns the one edge everything later depends on: it seeds the campaigns, and it <em>injects failures by genuinely PATCHing them</em> through campaign-service's public API (ADR-0005) &mdash; which is where stream ③ comes from. That whole system then falls out into three streams: its <strong>source and docs</strong> become the context layer (Days 6&#8211;10), its <strong>logs and metrics</strong> are what the ops agents read (Days 16&#8211;20), and its <strong>injected incidents</strong> are the thing to diagnose &mdash; a genuinely broken configuration, not a fixture. The eval harness scores every capability and publishes the number, flattering or not.
         </figcaption>
       </figure>
 
