@@ -1,14 +1,15 @@
-# bellwether/context/__main__.py
-"""`python -m bellwether.context` — ingest, chunk, embed, and search the corpus.
+"""`python -m bellwether.context` — ingest, chunk, embed, search, and evaluate.
 
 Day 7 promised `--chunk`, `--embed` and `--engines all` and shipped none of them,
 so its published numbers came from an ad-hoc script and are not reproducible by
-anyone reading the repo. That is the gap this closes.
+anyone reading the repo. That is the gap this closes — and Day 8 adds `--search`
+and `--eval` so the retrieval comparison is a command, not a spreadsheet.
 """
 
 from __future__ import annotations
 
 import argparse
+import time
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -24,7 +25,15 @@ from bellwether.context.retrieval.rerank import HeuristicReranker, LLMReranker
 from bellwether.context.retrieval.rerank.base import Reranker
 from bellwether.context.retrieval.search import SearchConfig, SearchMode, SearchService
 from bellwether.context.store import JsonlDocumentStore
-from bellwether.context.vectors import COLLECTION, InMemoryVectorStore, QdrantVectorStore
+from bellwether.context.vectors import (
+    COLLECTION,
+    InMemoryVectorStore,
+    QdrantVectorStore,
+    SearchHit,
+)
+from bellwether.eval.gold import Category, load_gold_set
+from bellwether.eval.pooling import build_pool, pool_coverage
+from bellwether.eval.report import evaluate, evaluate_category, format_results
 from bellwether.llm import get_client
 
 
@@ -49,6 +58,14 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--qdrant", default="http://localhost:6333")
     parser.add_argument("--in-memory", action="store_true", help="Skip Qdrant entirely.")
+    parser.add_argument("--eval", action="store_true", help="Score every configuration.")
+    parser.add_argument(
+        "--gold",
+        type=Path,
+        default=Path("data/gold/day08-retrieval.json"),
+        help="The answer key to score against.",
+    )
+    parser.add_argument("--pool", action="store_true", help="Print the judging pool.")
     return parser
 
 
@@ -63,6 +80,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.search:
         return _search(args, store)
+
+    if args.eval or args.pool:
+        return _evaluate(args, store)
 
     report = ingest(root, store)
     if not args.dry_run:
@@ -142,6 +162,76 @@ def _search(args: argparse.Namespace, store: JsonlDocumentStore) -> int:
     for rank, hit in enumerate(hits, start=1):
         anchor = hit.anchor or "(no anchor)"
         print(f"{rank:>2}. {hit.score:>8.4f}  {hit.source_path}  {anchor}")
+    return 0
+
+
+def _run_all_modes(
+    args: argparse.Namespace,
+    query_text: str,
+    heuristic: SearchService,
+    llm: SearchService | None,
+) -> tuple[dict[str, list[SearchHit]], dict[str, float]]:
+    """Run every configuration for one query, timing each.
+
+    Two services because `SearchService` holds one reranker: the heuristic one serves
+    every mode that does not rerank plus `hybrid-heuristic`, and a second, LLM-backed
+    service serves `hybrid-llm`. Both embed the query the same way, so the only thing
+    that differs between rows is the stage whose name the row carries.
+    """
+    hits: dict[str, list[SearchHit]] = {}
+    latency: dict[str, float] = {}
+    for mode in SearchMode:
+        service = llm if mode is SearchMode.HYBRID_LLM else heuristic
+        if service is None:
+            continue
+        config = SearchConfig(mode=mode, engine=args.engine, limit=10)
+        started = time.perf_counter()
+        hits[mode.value] = service.search(query_text, config)
+        latency[mode.value] = (time.perf_counter() - started) * 1000
+    return hits, latency
+
+
+def _evaluate(args: argparse.Namespace, store: JsonlDocumentStore) -> int:
+    """Run every configuration over the gold set, then pool or score."""
+    goldset = load_gold_set(args.gold)
+    chunks = chunk_corpus(store.documents())
+    index = BM25Index(chunks)
+    embedder = get_embedder(args.engine)
+    vectors = _vector_store(args)
+
+    heuristic = SearchService(index, vectors, embedder, HeuristicReranker())
+    llm: SearchService | None = None
+    client = get_client("gemini")
+    available, reason = client.available()
+    if available:
+        llm = SearchService(index, vectors, embedder, LLMReranker(client))
+    else:
+        print(f"hybrid-llm skipped: {reason}")
+
+    rankings: dict[str, dict[str, list[SearchHit]]] = {}
+    latencies: dict[str, float] = {}
+    for query in goldset.queries:
+        hits, latency = _run_all_modes(args, query.text, heuristic, llm)
+        rankings[query.query_id] = hits
+        for mode, elapsed in latency.items():
+            # The p50 the table reports; last-write is fine for a coarse per-mode read.
+            latencies[mode] = elapsed
+
+    if args.pool:
+        for entry in build_pool(goldset.queries, rankings):
+            anchor = entry.anchor or "(no anchor)"
+            print(f"{entry.query_id}\t{entry.chunk_id}\t{anchor}\t{entry.source_path}")
+        return 0
+
+    print(format_results(evaluate(goldset, rankings, latencies), "All queries"))
+    for category in Category:
+        print()
+        print(
+            format_results(
+                evaluate_category(goldset, rankings, category), f"Category: {category.value}"
+            )
+        )
+    print(f"\npool coverage: {pool_coverage(goldset, rankings):.1%}")
     return 0
 
 

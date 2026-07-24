@@ -1,0 +1,163 @@
+{
+  "version": "1",
+  "created_at": "2026-07-23T12:00:00Z",
+  "notes": "Day 8 retrieval gold set. Queries written and committed before any retrieval ran (see git history). Three categories: identifier (should favour BM25), conceptual (should favour vector), cross_document (fusion's real case). Judgements are placeholders here and are filled by pooled judgement after build_pool — every chunk graded 0/1/2 with provenance stripped. Pre-registered prediction: hybrid's aggregate win comes almost entirely from the identifier category, and it is flat or slightly worse than vector alone on conceptual queries.",
+  "queries": [
+    {
+      "query_id": "id-01",
+      "text": "where is budget_micros enforced",
+      "category": "identifier",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "id-02",
+      "text": "what does the ad_candidates_filtered_total metric count",
+      "category": "identifier",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "id-03",
+      "text": "POST /ad-request request and response shape",
+      "category": "identifier",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "id-04",
+      "text": "the spend:<campaign>:<date> Redis key format and TTL",
+      "category": "identifier",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "id-05",
+      "text": "how is a chunk_id derived",
+      "category": "identifier",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "id-06",
+      "text": "what does the bad_config_deploy failure scenario do",
+      "category": "identifier",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "id-07",
+      "text": "what is the HashingEmbedder for",
+      "category": "identifier",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "id-08",
+      "text": "how is a Qdrant point_id computed from a chunk",
+      "category": "identifier",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "id-09",
+      "text": "UpsertOutcome added updated unchanged",
+      "category": "identifier",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "id-10",
+      "text": "frequency cap Redis key per viewer",
+      "category": "identifier",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "co-01",
+      "text": "why was Qdrant chosen over ChromaDB",
+      "category": "conceptual",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "co-02",
+      "text": "why use hosted embeddings instead of running a model locally",
+      "category": "conceptual",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "co-03",
+      "text": "why does the simulator report the impression rather than the decision service",
+      "category": "conceptual",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "co-04",
+      "text": "what does anchor coverage measure and why does it matter",
+      "category": "conceptual",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "co-05",
+      "text": "why must the quality gates not be piped together",
+      "category": "conceptual",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "co-06",
+      "text": "what is the substrate and why does it exist",
+      "category": "conceptual",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "co-07",
+      "text": "why choose reciprocal rank fusion over weighted score fusion",
+      "category": "conceptual",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "co-08",
+      "text": "what makes a retrieved chunk citable",
+      "category": "conceptual",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "co-09",
+      "text": "why does the simulator inject failures through the public campaign API",
+      "category": "conceptual",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "co-10",
+      "text": "why are tests kept hermetic and run with Docker stopped",
+      "category": "conceptual",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "cd-01",
+      "text": "what breaks when a campaign budget overflows a 32-bit integer",
+      "category": "cross_document",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "cd-02",
+      "text": "how is a fill-rate collapse diagnosed from metrics",
+      "category": "cross_document",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "cd-03",
+      "text": "what happens between an ad request and a stored impression",
+      "category": "cross_document",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "cd-04",
+      "text": "which architecture decisions changed after being measured against reality",
+      "category": "cross_document",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "cd-05",
+      "text": "what does the failure-injection path touch end to end",
+      "category": "cross_document",
+      "judgements": {"__unjudged__": 1}
+    },
+    {
+      "query_id": "cd-06",
+      "text": "how do the four substrate services depend on each other",
+      "category": "cross_document",
+      "judgements": {"__unjudged__": 1}
+    }
+  ]
+}
