@@ -9,6 +9,7 @@ and `--eval` so the retrieval comparison is a command, not a spreadsheet.
 from __future__ import annotations
 
 import argparse
+import statistics
 import time
 from collections.abc import Sequence
 from pathlib import Path
@@ -22,7 +23,7 @@ from bellwether.context.embedding_run import EmbeddingRun, embed_corpus, format_
 from bellwether.context.pipeline import format_report, ingest
 from bellwether.context.retrieval.bm25 import BM25Index
 from bellwether.context.retrieval.rerank import HeuristicReranker, LLMReranker
-from bellwether.context.retrieval.rerank.base import Reranker
+from bellwether.context.retrieval.rerank.base import Reranker, RerankerSpec, RerankResult
 from bellwether.context.retrieval.search import SearchConfig, SearchMode, SearchService
 from bellwether.context.store import JsonlDocumentStore
 from bellwether.context.vectors import (
@@ -33,7 +34,7 @@ from bellwether.context.vectors import (
 )
 from bellwether.eval.gold import Category, load_gold_set
 from bellwether.eval.pooling import build_pool, pool_coverage
-from bellwether.eval.report import evaluate, evaluate_category, format_results
+from bellwether.eval.report import evaluate, evaluate_category, format_markdown, format_results
 from bellwether.llm import get_client
 
 
@@ -66,6 +67,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="The answer key to score against.",
     )
     parser.add_argument("--pool", action="store_true", help="Print the judging pool.")
+    parser.add_argument("--markdown", action="store_true", help="Also print the table as Markdown.")
     return parser
 
 
@@ -165,6 +167,44 @@ def _search(args: argparse.Namespace, store: JsonlDocumentStore) -> int:
     return 0
 
 
+class _CountingReranker:
+    """Wraps a reranker to record what it spent and how often it gave up.
+
+    `LLMReranker` degrades to the fused order on any backend failure and reports
+    `usage=None` when it does. That silence is correct — an outage should cost a
+    slightly worse ranking, not an error — and it is exactly how a reranker that had
+    never successfully run once produced a full page of plausible numbers. Counting
+    the degrades turns the eval's most expensive lesson into a line of output.
+    """
+
+    def __init__(self, inner: Reranker) -> None:
+        self._inner = inner
+        self.calls = 0
+        self.degraded = 0
+        self.tokens = 0
+        self.cost_usd = 0.0
+
+    @property
+    def spec(self) -> RerankerSpec:
+        """The wrapped reranker's own spec."""
+        return self._inner.spec
+
+    def available(self) -> tuple[bool, str]:
+        """Available exactly when the wrapped reranker is."""
+        return self._inner.available()
+
+    def rerank(self, query: str, hits: Sequence[SearchHit], limit: int) -> RerankResult:
+        """Delegate, then record the bill or the degrade."""
+        result = self._inner.rerank(query, hits, limit)
+        self.calls += 1
+        if result.usage is None:
+            self.degraded += 1
+        else:
+            self.tokens += result.usage.tokens
+            self.cost_usd += result.usage.cost_usd
+        return result
+
+
 def _run_all_modes(
     args: argparse.Namespace,
     query_text: str,
@@ -201,21 +241,28 @@ def _evaluate(args: argparse.Namespace, store: JsonlDocumentStore) -> int:
 
     heuristic = SearchService(index, vectors, embedder, HeuristicReranker())
     llm: SearchService | None = None
+    counter: _CountingReranker | None = None
     client = get_client("gemini")
     available, reason = client.available()
     if available:
-        llm = SearchService(index, vectors, embedder, LLMReranker(client))
+        counter = _CountingReranker(LLMReranker(client))
+        llm = SearchService(index, vectors, embedder, counter)
     else:
         print(f"hybrid-llm skipped: {reason}")
 
     rankings: dict[str, dict[str, list[SearchHit]]] = {}
-    latencies: dict[str, float] = {}
+    # Every sample, not the last one. Overwriting per query and calling the survivor
+    # a p50 published `hybrid-heuristic` as faster than the `dense` it is built on —
+    # a number that cannot be true, and the tell that it was one noisy sample.
+    samples: dict[str, list[float]] = {}
     for query in goldset.queries:
         hits, latency = _run_all_modes(args, query.text, heuristic, llm)
         rankings[query.query_id] = hits
         for mode, elapsed in latency.items():
-            # The p50 the table reports; last-write is fine for a coarse per-mode read.
-            latencies[mode] = elapsed
+            samples.setdefault(mode, []).append(elapsed)
+
+    latencies = {mode: statistics.median(values) for mode, values in samples.items()}
+    costs = {SearchMode.HYBRID_LLM.value: counter.cost_usd} if counter is not None else {}
 
     if args.pool:
         for entry in build_pool(goldset.queries, rankings):
@@ -223,7 +270,8 @@ def _evaluate(args: argparse.Namespace, store: JsonlDocumentStore) -> int:
             print(f"{entry.query_id}\t{entry.chunk_id}\t{anchor}\t{entry.source_path}")
         return 0
 
-    print(format_results(evaluate(goldset, rankings, latencies), "All queries"))
+    results = evaluate(goldset, rankings, latencies, costs)
+    print(format_results(results, "All queries"))
     for category in Category:
         print()
         print(
@@ -232,6 +280,18 @@ def _evaluate(args: argparse.Namespace, store: JsonlDocumentStore) -> int:
             )
         )
     print(f"\npool coverage: {pool_coverage(goldset, rankings):.1%}")
+
+    if counter is not None:
+        # A reranker that degrades is silent by design — an outage costs a slightly
+        # worse ranking, not an error. That silence once hid a reranker that had
+        # never run at all, so the count is reported whether or not it is zero.
+        print(
+            f"hybrid-llm: {counter.degraded}/{counter.calls} queries degraded to the "
+            f"fused order · {counter.tokens} tokens · ${counter.cost_usd:.4f}"
+        )
+
+    if args.markdown:
+        print("\n" + format_markdown(results))
     return 0
 
 
