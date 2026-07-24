@@ -102,7 +102,7 @@ def test_ingesting_the_real_repo_produces_the_expected_corpus() -> None:
     assert report.by_source_type["openapi"] == 4
     assert report.by_source_type["runbook"] == 1
     assert report.by_source_type["standards"] == 1
-    assert report.by_source_type["spec"] == 1
+    assert report.by_source_type["spec"] >= 1
     assert report.by_source_type["backlog"] == 1
     assert report.by_source_type["code"] > 20
     assert report.removed == []

@@ -211,7 +211,7 @@
 
 <section class="pod" aria-label="30-day build timeline">
   <div class="wrap">
-    <div class="pod-head"><span>The 30-day pod</span><span>7 shipped · 23 queued</span></div>
+    <div class="pod-head"><span>The 30-day pod</span><span>8 shipped · 22 queued</span></div>
     <div class="pod-strip">
       <div class="seg shipped nohead" title="Day 1 — Repo, ADR-0001, infra skeleton, running doc v1, CI · shipped"></div>
       <div class="seg shipped nohead" title="Day 2 — campaign-service (CRUD, Postgres, tests, OpenAPI) · shipped"></div>
@@ -219,8 +219,8 @@
       <div class="seg shipped nohead" title="Day 4 — event-service + Grafana dashboards · shipped"></div>
       <div class="seg shipped nohead" title="Day 5 — traffic-simulator + failure injection · Level 0 gate · shipped"></div>
       <div class="seg shipped nohead" title="Day 6 — document ingestion pipeline · shipped"></div>
-      <div class="seg shipped" title="Day 7 — chunking + embeddings + Qdrant · shipped"></div>
-      <div class="seg" title="Day 8 — hybrid retrieval + reranking"></div>
+      <div class="seg shipped nohead" title="Day 7 — chunking + embeddings + Qdrant · shipped"></div>
+      <div class="seg shipped" title="Day 8 — hybrid retrieval + reranking + pooled eval · shipped"></div>
       <div class="seg" title="Day 9 — AST knowledge graph"></div>
       <div class="seg" title="Day 10 — MCP server + retrieval evals · Level 1 gate"></div>
       <div class="seg" title="Day 11 — code-generation agent"></div>
@@ -524,6 +524,64 @@ flowchart TB
     R4["run 4, a devlog deleted&lt;br/&gt;1 pruned"] --> C
     C -.->|"an orphan is worse&lt;br/&gt;than a gap — an agent&lt;br/&gt;will cite it"| P["prune()"]
     </pre>
+
+    <h3>Day 8 — the day the prediction was wrong</h3>
+    <p>Day 7 could find chunks that <em>mean</em> what you asked. It could not reliably find chunks that are <em>named</em> what you asked — embedding <code>budget_micros</code> lands near "budget" and "spending", and no nearer the one chunk that defines the field than twenty that discuss money. So Day 8 added keyword search (BM25) beside the vector side, fused the two, reranked the result, and — the part that matters — <strong>measured whether any of it helped</strong>.</p>
+
+    <p>The design spec pre-registered a prediction in writing, committed before a line of retrieval code existed: hybrid would win, and its win would come almost entirely from identifier queries. <strong>The premise was wrong. There is no aggregate hybrid win.</strong></p>
+
+    <table class="tbl">
+      <thead><tr><th>Configuration</th><th class="mono">nDCG@10</th><th class="mono">recall@10</th><th class="mono">MRR</th><th class="mono">p50</th></tr></thead>
+      <tbody>
+        <tr><td class="st done">dense — vector only (gemini)</td><td class="mono st done">0.670</td><td class="mono st done">0.757</td><td class="mono">0.774</td><td class="mono">812 ms</td></tr>
+        <tr><td>hybrid + LLM rerank</td><td class="mono">0.656</td><td class="mono">0.682</td><td class="mono st done">0.870</td><td class="mono">9,309 ms</td></tr>
+        <tr><td>hybrid + heuristic rerank</td><td class="mono">0.639</td><td class="mono">0.689</td><td class="mono">0.791</td><td class="mono">783 ms</td></tr>
+        <tr><td>hybrid — reciprocal rank fusion</td><td class="mono">0.628</td><td class="mono">0.674</td><td class="mono">0.844</td><td class="mono">842 ms</td></tr>
+        <tr><td>hybrid — weighted fusion</td><td class="mono">0.624</td><td class="mono">0.678</td><td class="mono">0.834</td><td class="mono">802 ms</td></tr>
+        <tr><td>lexical — BM25 only</td><td class="mono">0.395</td><td class="mono">0.496</td><td class="mono">0.556</td><td class="mono st done">2.9 ms</td></tr>
+      </tbody>
+    </table>
+
+    <p>Vector search alone beat every hybrid configuration. Adding the lexical side <em>lowered</em> the score.</p>
+
+    <h3>The category that settles it</h3>
+    <p>The prediction was most specific about identifier questions — <em>where is <code>budget_micros</code> enforced</em> — where keyword search was supposed to dominate. It came last.</p>
+
+    <table class="tbl">
+      <thead><tr><th>Configuration</th><th class="mono">identifier</th><th class="mono">conceptual</th><th class="mono">cross-document</th></tr></thead>
+      <tbody>
+        <tr><td class="st done">dense (gemini)</td><td class="mono st done">0.711</td><td class="mono">0.598</td><td class="mono st done">0.721</td></tr>
+        <tr><td>hybrid (RRF)</td><td class="mono">0.696</td><td class="mono">0.583</td><td class="mono">0.589</td></tr>
+        <tr><td>hybrid + heuristic</td><td class="mono">0.652</td><td class="mono">0.601</td><td class="mono">0.681</td></tr>
+        <tr><td>hybrid + LLM</td><td class="mono">0.696</td><td class="mono">0.583</td><td class="mono">0.711</td></tr>
+        <tr><td>hybrid (weighted)</td><td class="mono">0.661</td><td class="mono st done">0.620</td><td class="mono">0.569</td></tr>
+        <tr><td>lexical (BM25)</td><td class="mono">0.426</td><td class="mono">0.452</td><td class="mono">0.250</td></tr>
+      </tbody>
+    </table>
+
+    <p>Gemini's embeddings are strong enough on this corpus that they win the category that was supposed to be lexical search's home ground. <strong>What I would have shipped without the evaluation is "hybrid retrieval with reranking" — slower, more complex, and worse.</strong> It would have looked like progress.</p>
+
+    <h3>How the answer key was built so it could not flatter anything</h3>
+    <p>A retrieval score is only as honest as the ground truth under it, and the cheap ways to build one are all rigged: label from what the retriever returned and you reward what you built; derive queries from chunk text and BM25 wins by construction; judge only the favoured system's results and nothing else can ever score.</p>
+    <ul>
+      <li><strong>26 questions, committed before any retrieval ran</strong> — git records that the question set predates every result</li>
+      <li><strong>Pooled from all six configurations</strong>, not just the favoured one — a reranker promotes chunks from rank 14, and a pool built from one system's top 10 would never have judged them</li>
+      <li><strong>Shuffled and stripped of provenance</strong> — the judge never sees which configuration surfaced a chunk, or in what order it ranked</li>
+      <li><strong>475 pairs graded 0 / 1 / 2</strong>, and the file is committed so anyone can check the marking</li>
+      <li><strong>99.9% pool coverage</strong> on the published run (100% on the first) — all but one of the chunks any configuration retrieved was judged, so essentially nothing lost points to a chunk nobody graded</li>
+    </ul>
+
+    <h3>Two rows that agreed too well</h3>
+    <p>The first run had a tell: <code>hybrid-llm</code> scored byte-identical to <code>hybrid</code> — same nDCG, recall and MRR to three decimals, in every category. That is impossible if a reranker is doing anything, so it wasn't. Every Gemini call was failing and the reranker was falling back to the fused order, exactly as designed. Three causes, stacked, and <em>none</em> was visible to a test suite that fakes the network:</p>
+    <ul>
+      <li>The grading schema constrained relevance with an integer <code>enum</code>. Gemini's <code>responseSchema</code> is a restricted dialect that rejects integer enums outright — <strong>400 on every request</strong>.</li>
+      <li>The default model <code>gemini-2.5-flash</code> now returns <strong>404 — "no longer available to new users"</strong>. A hardcoded model id went stale between writing the plan and running it.</li>
+      <li>With those two fixed the calls finally reached the model — and still degraded. The <strong>2,048-token default truncated the JSON mid-array</strong> on 25 of 26 queries: twenty full-path <code>chunk_id</code>s past a model that spends output budget thinking runs to ~5,000 tokens, and a reply that <em>starts</em> like JSON and stops mid-value raises exactly like malformed JSON. Raised to 8,192.</li>
+    </ul>
+    <p>A fake transport can validate neither a provider's schema dialect, its model catalogue, nor how long its answers run. This is Day 7's lesson in a new place: <strong>anything faked in tests needs one live round-trip before it is trusted</strong>. The silent degrade path was the correct behaviour and an observability hole — a completely broken reranker produced entirely plausible numbers, which is why the eval now counts every degrade and prints the total whether or not it is zero.</p>
+
+    <h3>0.670 is a baseline, not a ceiling</h3>
+    <p>nDCG is not a percentage of right answers: it gives half credit for partially-relevant chunks, penalises a good answer at rank 3, and is measured against a strict hand-written key. The companion numbers are healthier — <strong>76% of relevant chunks reach the top 10</strong>, and <strong>the first useful answer is usually rank 1 or 2</strong>. The real deliverable is that every idea below is now testable against a fixed answer key instead of argued about: a purpose-built reranker, contextual chunk headers, a larger second-opinion gold set, query rewriting for the conceptual shapes that scored lowest.</p>
   </div>
 </section>
 
@@ -541,7 +599,7 @@ flowchart TB
         <tr><td class="mono">05</td><td class="mono">0</td><td>traffic-simulator + failure injection · Level 0 quality gate</td><td class="st done">● SHIPPED</td></tr>
         <tr><td class="mono">06</td><td class="mono">1</td><td>Document ingestion pipeline</td><td class="st done">● SHIPPED</td></tr>
         <tr><td class="mono">07</td><td class="mono">1</td><td>Chunking + embedding strategies (comparison documented)</td><td class="st done">● SHIPPED</td></tr>
-        <tr><td class="mono">08</td><td class="mono">1</td><td>Hybrid retrieval + reranking</td><td class="st plan">○ QUEUED</td></tr>
+        <tr><td class="mono">08</td><td class="mono">1</td><td>Hybrid retrieval + reranking + pooled-judgement eval</td><td class="st done">● SHIPPED</td></tr>
         <tr><td class="mono">09</td><td class="mono">1</td><td>AST knowledge graph + visualization</td><td class="st plan">○ QUEUED</td></tr>
         <tr><td class="mono">10</td><td class="mono">1</td><td>MCP server + retrieval eval suite · Level 1 quality gate</td><td class="st plan">○ QUEUED</td></tr>
         <tr><td class="mono">11</td><td class="mono">2</td><td>Code-generation agent</td><td class="st plan">○ QUEUED</td></tr>
@@ -639,7 +697,7 @@ flowchart TB
 
 <footer>
   <div class="wrap">
-    <p><b>DAY 07 / 30</b> · BUILT IN PUBLIC</p>
+    <p><b>DAY 08 / 30</b> · BUILT IN PUBLIC</p>
     <p>BELLWETHER is an independent open-source project, not affiliated with or endorsed by Netflix.</p>
   </div>
 </footer>

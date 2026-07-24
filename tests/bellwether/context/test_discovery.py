@@ -64,7 +64,10 @@ def test_the_observability_config_is_in() -> None:
 
 def test_the_spec_the_plans_the_standards_and_the_backlog_are_in() -> None:
     grouped = _by_type(REPO_ROOT)
-    assert grouped["spec"] == ["docs/superpowers/specs/2026-07-20-bellwether-design.md"]
+    # Specs accumulate as the build proceeds, so assert the founding spec is present
+    # rather than that it is alone — the exact-list form failed when Day 8 added
+    # its own design doc.
+    assert "docs/superpowers/specs/2026-07-20-bellwether-design.md" in grouped["spec"]
     assert len(grouped["plan"]) >= 5
     assert grouped["standards"] == ["docs/standards/coding-standards.md"]
     assert grouped["backlog"] == ["docs/backlog/substrate-gaps.md"]

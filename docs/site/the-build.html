@@ -315,22 +315,22 @@
     <p class="eyebrow"><span class="tick">&#9656;</span> A LIVING ACCOUNT · EXTENDED EVERY BUILD DAY</p>
     <h1 class="mark">I'm building an AI<br>platform that writes code,<br>reviews it, and <em>runs it</em></h1>
     <p class="lede"><strong>BELLWETHER is an AI layer for an engineering team.</strong> Agents that generate code and tests, review pull requests against written standards, and diagnose production incidents from real logs and metrics &mdash; all grounded in this team's own decisions rather than generic training data, and every one of them carrying a published score.</p>
-    <p class="lede">But an AI layer is only worth as much as what you can test it against. So I am building it something real to operate on: <strong>a small ads platform</strong> &mdash; four services deciding which advert to serve, recording what got delivered, and breaking in ways I can cause on demand. <strong>BELLWETHER is the AI. The ads platform is what it operates.</strong> I picked ad serving because it is the domain of the team I am aiming at, and because its real outages are configuration mistakes &mdash; which leaves an actual cause in an actual database for an agent to find.</p>
+    <p class="lede">An AI layer is only worth what you can test it against. So I am also building the thing it operates on: <strong>a small ads platform</strong> &mdash; four services that decide which advert to serve, record what got delivered, and break in ways I can cause on demand. <strong>BELLWETHER is the AI. The ads platform is what it operates.</strong> Ad serving is the team's domain, and its real outages are configuration mistakes &mdash; the kind that leave an actual cause in an actual database for an agent to find.</p>
     <p class="lede">I'm building it in thirty days and writing it down as I go: the method I follow each day, every tool and why I picked it over the alternative, the architecture at each stage, every decision and the condition that would reverse it, and each time reality proved me wrong.</p>
-    <p class="lede"><strong>This page currently covers Day 0 through Day 07.</strong> I write nothing with hindsight &mdash; I record the mistakes on the day I make them, and I leave them on the page.</p>
+    <p class="lede"><strong>This page currently covers Day 0 through Day 08.</strong> I write nothing with hindsight &mdash; I record the mistakes on the day I make them, and I leave them on the page.</p>
 
     <div class="progress">
-      <div class="progress-head"><span>The thirty-day arc</span><span>Day 07 &middot; Level 1 in progress</span></div>
-      <div class="progress-strip" role="img" aria-label="Day 7 of 30 written">
+      <div class="progress-head"><span>The thirty-day arc</span><span>Day 08 &middot; Level 1 in progress</span></div>
+      <div class="progress-strip" role="img" aria-label="Day 8 of 30 written">
         <div class="pseg done" title="Day 1 — Repo, ADR-0001, infra skeleton, CI · written"></div>
         <div class="pseg done" title="Day 2 — campaign-service · written"></div>
         <div class="pseg done" title="Day 3 — ad-decision-service · written"></div>
         <div class="pseg done" title="Day 4 — event-service + dashboards · written"></div>
         <div class="pseg done" title="Day 5 — traffic-simulator + Level 0 gate · written"></div>
         <div class="pseg done" title="Day 6 — Document ingestion pipeline · written"></div>
-        <div class="pseg done now" title="Day 7 — Chunking, embeddings, Qdrant · written"></div>
-        <div class="pseg" title="Day 8 — Hybrid retrieval + the console · ahead"></div>
-        <div class="pseg" title="Day 9 — AST knowledge graph · ahead"></div>
+        <div class="pseg done" title="Day 7 — Chunking, embeddings, Qdrant · written"></div>
+        <div class="pseg done now" title="Day 8 — Hybrid retrieval, reranking, pooled eval · written"></div>
+        <div class="pseg" title="Day 9 — AST knowledge graph + the console · ahead"></div>
         <div class="pseg" title="Day 10 — MCP server + Level 1 gate · ahead"></div>
         <div class="pseg" title="Day 11 · ahead"></div>
         <div class="pseg" title="Day 12 · ahead"></div>
@@ -357,11 +357,11 @@
     </div>
 
     <div class="facts">
-      <div class="fact"><b>07 / 30</b><span>days written</span></div>
+      <div class="fact"><b>08 / 30</b><span>days written</span></div>
       <div class="fact"><b>1 / 6</b><span>levels complete</span></div>
       <div class="fact"><b>5</b><span>services running</span></div>
-      <div class="fact"><b>289</b><span>tests passing</span></div>
-      <div class="fact"><b>8</b><span>decisions recorded</span></div>
+      <div class="fact"><b>410</b><span>tests passing</span></div>
+      <div class="fact"><b>10</b><span>decisions recorded</span></div>
       <div class="fact"><b>11/11</b><span>level 0 gate</span></div>
     </div>
   </div>
@@ -387,7 +387,7 @@
   <section class="reel" id="reel-1">
     <div class="measure">
       <p class="reel-num">Reel one</p>
-      <h2>The setup</h2>
+      <h2>Setting the stage</h2>
       <p>Before a single line of the product exists, three things have to be settled: what problem this is actually solving, how the work will be done every single day, and what it will be built with. Everything afterwards is consequences.</p>
       <div class="reel-rule"></div>
     </div>
@@ -776,7 +776,7 @@ E   ModuleNotFoundError: No module named <span class="g">'substrate.event_servic
 
       <pre class="code"><span class="c"># WRONG &#8212; reports success even when mypy fails.</span>
 <span class="c"># In a pipeline the surviving exit code is tail's, and tail always succeeds.</span>
-uv run mypy tests substrate bellwether <span class="k">|</span> tail -2 <span class="k">&&</span> git commit
+uv run mypy tests substrate platform bellwether <span class="k">|</span> tail -2 <span class="k">&&</span> git commit
 
 <span class="c"># RIGHT &#8212; each gate's own exit code is visible and fatal.</span>
 uv run ruff check .
@@ -784,7 +784,7 @@ uv run ruff format --check .
 uv run mypy tests substrate platform bellwether
 uv run pytest</pre>
 
-      <p class="caption">This exact mistake shipped nine type errors on Day 7 &mdash; in a project whose own Day 4 notes warn about it, written by the person who wrote the warning.</p>
+      <p class="caption">This exact mistake shipped nine type errors on Day 7. My own Day 4 notes warn against it. I wrote both.</p>
 
       <h4 class="sub">Step 4 &middot; The tests must pass with everything switched off</h4>
 
@@ -1054,24 +1054,7 @@ $ uv run pytest                                          <span class="g">289 pas
         </div>
       </div>
 
-      <h4 class="sub">The AI layer, added Day 6&ndash;7</h4>
-      <div class="tools">
-        <div class="tool">
-          <div class="tool-head"><span class="tool-name">Qdrant</span><span class="tool-role">vector database</span></div>
-          <p>Stores the numerical representations of text and finds the nearest matches. Written in Rust, so it is light on memory.</p>
-          <p class="versus"><b>Instead of ChromaDB</b> (which the original plan named): Qdrant can hold <em>several</em> vectors per record under different names, which is what makes comparing four embedding models on identical input possible at all. See ADR-0008.</p>
-        </div>
-        <div class="tool">
-          <div class="tool-head"><span class="tool-name">Gemini &amp; Voyage</span><span class="tool-role">hosted embeddings</span></div>
-          <p>Convert text into vectors, on the provider's hardware. Gemini currently leads the public quality benchmark.</p>
-          <p class="versus"><b>Instead of running a model locally:</b> two cents for the whole corpus, versus 2.5&nbsp;GB of machine-learning libraries competing for memory with Docker on a 16&nbsp;GB laptop. See ADR-0007 &mdash; the original plan had this backwards.</p>
-        </div>
-        <div class="tool">
-          <div class="tool-head"><span class="tool-name">Model2Vec (potion)</span><span class="tool-role">local embeddings</span></div>
-          <p>A model whose word-vectors are precomputed, so using it is a lookup and an average rather than running a neural network.</p>
-          <p class="versus"><b>Instead of sentence-transformers:</b> eleven small packages and no PyTorch, versus 2.5&nbsp;GB &mdash; at roughly 82% of the quality. Free, offline, and needs no graphics card.</p>
-        </div>
-      </div>
+      <p>The AI layer adds three tools of its own &mdash; a vector database and two embedding models. They arrive in Reel three, alongside Day 7, where the ideas they depend on are explained first.</p>
     </div>
   </section>
 
@@ -1081,6 +1064,8 @@ $ uv run pytest                                          <span class="g">289 pas
       <p class="reel-num">Reel two &middot; Days 1&ndash;5</p>
       <h2>Building the world</h2>
       <p>Five days to build a small ads platform that behaves like a real one: it serves adverts, records what it delivered, shows you what it is doing, and can be broken on demand in ways that are genuinely broken.</p>
+      <p>I call this half the <strong>substrate</strong> &mdash; the layer underneath the AI: real enough to serve, log and break, so everything built on top of it is measured against something true.</p>
+      <p>First the map &mdash; the finished architecture in one reference chapter. Then the five days that built it, one at a time.</p>
       <div class="reel-rule"></div>
     </div>
   </section>
@@ -1091,7 +1076,17 @@ $ uv run pytest                                          <span class="g">289 pas
       <p class="day-eyebrow">Reference &middot; the substrate in full</p>
       <h3 class="hd">The architecture, in depth</h3>
 
-      <p>Reel two builds the ads platform one day at a time. Before that story starts, here is the finished thing as a whole &mdash; the real services, the real data flowing between them, and one real request traced end to end. Treat it as a map: skim it now for the shape, and come back when a later day zooms in on one part.</p>
+      <p>Reel two tells the build one day at a time. This chapter is the map you read it with &mdash; the finished platform as a whole, in five short passes:</p>
+
+      <ul>
+        <li><strong>The shape</strong> &mdash; how the two halves connect, in one diagram</li>
+        <li><strong>The parts</strong> &mdash; every service and store, one line each</li>
+        <li><strong>One real request</strong> &mdash; traced end to end, no invented values</li>
+        <li><strong>The data</strong> &mdash; what is stored where, and what is measured</li>
+        <li><strong>One real failure</strong> &mdash; injected, measured, recovered</li>
+      </ul>
+
+      <p>Skim it for the shape now; come back when a later day zooms in on one part.</p>
 
       <figure class="figure">
         <div class="figure-head">
@@ -1168,9 +1163,13 @@ flowchart TB
     class EVAL evalcls;
         </pre>
         <figcaption class="figure-cap">
-          <strong>Follow the numbers through the substrate.</strong> The simulator asks the decision service for an ad ①; the decision service reads campaigns from campaign-service and checks frequency caps and pacing spend in Redis, then returns the ad ②; and <em>the simulator</em> &mdash; not the decision service &mdash; reports the resulting impression to event-service ③, carrying the decision's request-id so the two tie together. The simulator also owns the one edge everything later depends on: it seeds the campaigns, and it <em>injects failures by genuinely PATCHing them</em> through campaign-service's public API (ADR-0005) &mdash; which is where stream ③ comes from. That whole system then falls out into three streams: its <strong>source and docs</strong> become the context layer (Days 6&#8211;10), its <strong>logs and metrics</strong> are what the ops agents read (Days 16&#8211;20), and its <strong>injected incidents</strong> are the thing to diagnose &mdash; a genuinely broken configuration, not a fixture. The eval harness scores every capability and publishes the number, flattering or not.
+          <strong>Follow the numbers.</strong> ① The simulator asks the decision service for an ad. ② The decision service reads campaigns from campaign-service, checks caps and spend in Redis, and returns one ad. ③ The <em>simulator</em> reports the resulting impression to event-service, quoting the same request-id, so decision and delivery tie together.
         </figcaption>
       </figure>
+
+      <p>One edge matters more than all the others: the simulator seeds the campaigns, and it injects failures by <strong>genuinely PATCHing them through campaign-service's public API</strong> (ADR-0005). Every incident an agent later diagnoses starts on that edge &mdash; a genuinely broken configuration, not a fixture.</p>
+
+      <p>The substrate then feeds the AI layer three things. Its <strong>source and docs</strong> become the context layer (Days 6&ndash;10). Its <strong>logs and metrics</strong> are what the ops agents read (Days 16&ndash;20). Its <strong>injected incidents</strong> are the thing to diagnose. The eval harness scores every capability and publishes the number, flattering or not.</p>
 
       <h4 class="sub">What each part is, in one line</h4>
 
@@ -1250,9 +1249,9 @@ flowchart TB
         <p>The sketch was simpler. The built version is busier and correct. Simpler was not better here &mdash; it was hiding the control plane that turned out to hold the whole thesis up.</p>
       </div>
 
-      <h4 class="sub">The architecture in depth: one real ad request, traced end to end</h4>
+      <h4 class="sub">One real ad request, traced end to end</h4>
 
-      <p>Everything above is the map. Here is the territory &mdash; a single ad request moving through the built system, using the <strong>actual three campaigns the platform seeds itself with on first start</strong>. No values are invented; every number, field and reason string below is what the code produces.</p>
+      <p>Now the territory. One ad request moves through the running system, against the <strong>three campaigns the platform seeds itself with on first start</strong>. Nothing below is invented &mdash; every number, field and reason string is what the code produces.</p>
 
       <p>A viewer reaches an ad break. The simulator sends this to <code>ad-decision-service:8002</code>:</p>
 
@@ -1351,7 +1350,7 @@ spend:&lt;campaign&gt;:2026-07-23              =  2000  <span class="c"># micros
 
       <h4 class="sub">What the platform measures</h4>
 
-      <p>Nine metric families, scraped from all five services every few seconds. The one that does the most work is <code>ad_candidates_filtered_total</code> &mdash; because Day 3 gave every rejection a <em>name</em>, a fill-rate collapse becomes a single chart where you read the cause off whichever band grew.</p>
+      <p>Prometheus scrapes every service every few seconds. These are the metrics that matter. The one that does the most work is <code>ad_candidates_filtered_total</code> &mdash; because Day 3 gave every rejection a <em>name</em>, a fill-rate collapse becomes a single chart where you read the cause off whichever band grew.</p>
 
       <div class="tbl-scroll">
       <table class="tbl">
@@ -1950,6 +1949,25 @@ flowchart TB
 
       <p>That gap is the entire argument for paying for embeddings &mdash; measured on this corpus, not quoted from a vendor's chart.</p>
 
+      <h4 class="sub">The tools this level added, and what each beat</h4>
+      <div class="tools">
+        <div class="tool">
+          <div class="tool-head"><span class="tool-name">Qdrant</span><span class="tool-role">vector database</span></div>
+          <p>Stores the numerical representations of text and finds the nearest matches. Written in Rust, so it is light on memory.</p>
+          <p class="versus"><b>Instead of ChromaDB</b> (which the original plan named): Qdrant can hold <em>several</em> vectors per record under different names, which is what makes comparing four embedding models on identical input possible at all. See ADR-0008 above.</p>
+        </div>
+        <div class="tool">
+          <div class="tool-head"><span class="tool-name">Gemini &amp; Voyage</span><span class="tool-role">hosted embeddings</span></div>
+          <p>Convert text into vectors, on the provider's hardware. Gemini currently leads the public quality benchmark.</p>
+          <p class="versus"><b>Instead of running a model locally:</b> two cents for the whole corpus, versus 2.5&nbsp;GB of machine-learning libraries competing for memory with Docker on a 16&nbsp;GB laptop. See ADR-0007 above &mdash; the plan had this backwards until the corpus was measured.</p>
+        </div>
+        <div class="tool">
+          <div class="tool-head"><span class="tool-name">Model2Vec (potion)</span><span class="tool-role">local embeddings</span></div>
+          <p>A model whose word-vectors are precomputed, so using it is a lookup and an average rather than running a neural network.</p>
+          <p class="versus"><b>Instead of sentence-transformers:</b> eleven small packages and no PyTorch, versus 2.5&nbsp;GB &mdash; at roughly 82% of the quality. Free, offline, and needs no graphics card.</p>
+        </div>
+      </div>
+
       <div class="found">
         <span class="tag">What reality found &#8212; the most dangerous bug in eight days</span>
         <h5>The database silently destroyed data, and every test passed</h5>
@@ -1960,6 +1978,95 @@ flowchart TB
       </div>
 
       <p class="tight"><strong>Day 7 ended at 289 tests, 585 pieces, three engines measured.</strong></p>
+    </div>
+  </section>
+
+  <!-- ---------------- DAY 8 ---------------- -->
+  <section class="day" id="day-8" data-day="08" data-name="THE ANSWER KEY">
+    <div class="measure">
+      <p class="day-eyebrow">Day 08 &middot; Hybrid retrieval, reranking, an honest number</p>
+      <h3 class="hd">The day the prediction was wrong</h3>
+
+      <p>Day 7 could find pieces that <em>mean</em> what you asked. It could not reliably find pieces that are <em>named</em> what you asked. The embedding of <code>budget_micros</code> lands near &ldquo;budget&rdquo; and &ldquo;spending&rdquo; &mdash; and no nearer the one piece that defines the field than the twenty that merely discuss money.</p>
+
+      <p>So Day 8 added <strong>keyword search</strong> (BM25) beside the vector search, <strong>fused</strong> the two rankings, <strong>reranked</strong> the result &mdash; and then did the part the other three exist to justify: <strong>measured whether any of it actually helped.</strong></p>
+
+      <pre class="mermaid">
+flowchart TB
+    Q["A question"] --> D["Vector search&lt;br/&gt;finds meaning"]
+    Q --> L["BM25&lt;br/&gt;finds names"]
+    D & L --> F["Reciprocal Rank Fusion&lt;br/&gt;rank position only, never the score"]
+    F --> RR["Rerank&lt;br/&gt;free heuristic &middot; or an LLM"]
+    RR --> TOP["The results"]
+      </pre>
+
+      <h4 class="sub">The prediction, written down before the code</h4>
+
+      <p>The design spec pre-registered a claim <strong>in git, timestamped before a line of retrieval code existed</strong>: hybrid&rsquo;s advantage would come almost entirely from identifier queries &mdash; questions like <em>where is <code>budget_micros</code> enforced</em> &mdash; and on conceptual questions it would be flat or slightly worse than vector search alone.</p>
+
+      <p>Writing the prediction down first is the whole point. A number is only honest if you cannot move the target after you have seen it.</p>
+
+      <h4 class="sub">The answer key nobody could rig</h4>
+
+      <p>Before any system ran, 26 questions were committed. Then every configuration&rsquo;s top results were <strong>pooled together, shuffled, and stripped of any sign of which system produced them</strong>, and each of the 475 question&ndash;piece pairs was graded 0, 1 or 2 by hand. The grader never saw which engine surfaced a piece, or where it ranked. The file is committed and pinned to the exact corpus revision it was judged against, so anyone can check the marking.</p>
+
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th>Configuration</th><th class="mono">nDCG@10</th><th class="mono">recall@10</th><th class="mono">MRR</th><th class="mono">p50</th></tr></thead>
+        <tbody>
+          <tr><td><strong>dense &mdash; vector only</strong></td><td class="mono good"><strong>0.670</strong></td><td class="mono good"><strong>0.757</strong></td><td class="mono">0.774</td><td class="mono">812&nbsp;ms</td></tr>
+          <tr><td>hybrid + LLM rerank</td><td class="mono">0.656</td><td class="mono">0.682</td><td class="mono good">0.870</td><td class="mono">9,309&nbsp;ms</td></tr>
+          <tr><td>hybrid + heuristic rerank</td><td class="mono">0.639</td><td class="mono">0.689</td><td class="mono">0.791</td><td class="mono">783&nbsp;ms</td></tr>
+          <tr><td>hybrid (RRF)</td><td class="mono">0.628</td><td class="mono">0.674</td><td class="mono">0.844</td><td class="mono">842&nbsp;ms</td></tr>
+          <tr><td>hybrid (weighted)</td><td class="mono">0.624</td><td class="mono">0.678</td><td class="mono">0.834</td><td class="mono">802&nbsp;ms</td></tr>
+          <tr><td>lexical &mdash; BM25 only</td><td class="mono">0.395</td><td class="mono">0.496</td><td class="mono">0.556</td><td class="mono good">2.9&nbsp;ms</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p><strong>There was no aggregate hybrid win to explain.</strong> Vector search alone beat every hybrid configuration. Adding the keyword side <em>lowered</em> the headline score.</p>
+
+      <p>And the prediction failed exactly where it was most specific. BM25 was supposed to <em>own</em> the identifier category &mdash; its home ground, the literal-name questions. It came last:</p>
+
+      <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th>Configuration</th><th class="mono">identifier</th><th class="mono">conceptual</th><th class="mono">cross-document</th></tr></thead>
+        <tbody>
+          <tr><td><strong>dense &mdash; vector only</strong></td><td class="mono good"><strong>0.711</strong></td><td class="mono">0.598</td><td class="mono good"><strong>0.721</strong></td></tr>
+          <tr><td>hybrid (RRF)</td><td class="mono">0.696</td><td class="mono">0.583</td><td class="mono">0.589</td></tr>
+          <tr><td>lexical &mdash; BM25 only</td><td class="mono bad">0.426</td><td class="mono">0.452</td><td class="mono bad">0.250</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>Gemini&rsquo;s embeddings are good enough on this corpus that they win the one category keyword search was built to dominate. <strong>What I would have published without the answer key:</strong> &ldquo;hybrid retrieval, with reranking.&rdquo; It would have been slower, more complex, and worse &mdash; and it would have looked like progress.</p>
+
+      <p>One honest boundary on the result: this is a finding about <em>this</em> corpus &mdash; 708 well-structured pieces of ADRs, devlogs and typed Python, embedded by a frontier model. A larger, messier, more jargon-dense corpus is exactly where keyword search earns its keep. The number is a baseline, not a law.</p>
+
+      <div class="decision">
+        <span class="tag">ADR-0009</span>
+        <h5>Fuse on rank, not on score</h5>
+        <p>Cosine similarity lives between &minus;1 and 1; BM25 is unbounded and routinely reaches 20. Adding them requires normalising first &mdash; and <strong>every normalisation is a knob that can be turned, consciously or not, until the system you were hoping to promote comes out ahead.</strong></p>
+        <p>Reciprocal Rank Fusion uses rank position only. It never sees the scores, and its one published constant was not tuned against the answer key. The score-normalising alternative shipped too, as its own measured row &mdash; and on conceptual questions it was the best fusion of all, which is why it stays.</p>
+      </div>
+
+      <div class="decision">
+        <span class="tag">ADR-0010</span>
+        <h5>The LLM reranker works, and it is still not the default</h5>
+        <p>It is the best hybrid row, and it holds the best MRR of any configuration &mdash; the first genuinely useful answer is nearly always rank one.</p>
+        <p>It also costs <strong>9.3 seconds per query against 783 milliseconds</strong> for the free heuristic, and it <em>still</em> loses to plain vector search. So it stays behind a flag, and a free deterministic reranker stays the default.</p>
+        <p class="trigger"><b>Trigger to revisit:</b> a purpose-built reranker (Cohere or Voyage) that beats vector search&rsquo;s 0.670 at a latency the serving path can afford. It becomes the default the day it exists.</p>
+      </div>
+
+      <div class="found">
+        <span class="tag">What reality found &mdash; a reranker that had never run</span>
+        <h5>Two rows agreed to three decimals, and that was the tell</h5>
+        <p>The LLM-reranked configuration came back <strong>byte-identical</strong> to the un-reranked one &mdash; the same score to three decimals, in every category. That is impossible if a reranker is doing anything, so it wasn&rsquo;t. Every model call was failing, and the reranker was falling back to the fused order exactly as designed.</p>
+        <p>Three bugs, stacked, and none was visible to a test suite that fakes the network: the grading schema used a shape the provider rejects outright; the default model id had gone stale to a 404 <em>between writing the plan and running it</em>; and once those were fixed the answer was being <strong>truncated mid-sentence</strong> on 25 of 26 questions, which reads to the parser exactly like a broken reply and degrades just as quietly.</p>
+        <p>The degrade path was correct behaviour &mdash; an outage should cost a slightly worse ranking, not an error &mdash; and it was also an observability hole: a completely broken reranker produced entirely plausible numbers. The only thing that caught it was two rows agreeing too well. The eval now <strong>counts every silent degrade and prints the total on every run</strong>, so the next one is loud.</p>
+      </div>
+
+      <p class="tight"><strong>Day 8 ended at 410 tests, 708 pieces, six configurations measured &mdash; and one prediction, published wrong.</strong></p>
     </div>
   </section>
 
@@ -1974,8 +2081,9 @@ flowchart TB
       <pre class="mermaid">
 flowchart TB
     subgraph L1["LEVEL 1 &#8212; context layer (in progress)"]
-        COR["67 documents&lt;br/&gt;585 searchable pieces"]
+        COR["73 documents&lt;br/&gt;708 searchable pieces"]
         VEC["Vector store&lt;br/&gt;4 engines, 1 record each"]
+        RET["Hybrid retrieval&lt;br/&gt;6 configurations, one answer key"]
     end
     subgraph L0["LEVEL 0 &#8212; the substrate (complete, 11/11)"]
         CS["campaign-service&lt;br/&gt;:8001"]
@@ -1987,8 +2095,8 @@ flowchart TB
     SIM --> ADS --> CS
     SIM --> EV
     L0 -->|"source · docs · contracts · config"| COR
-    COR --> VEC
-    VEC -.->|"Days 8-10"| NEXT["hybrid search&lt;br/&gt;knowledge graph&lt;br/&gt;MCP server"]
+    COR --> VEC --> RET
+    RET -.->|"Days 9-10"| NEXT["knowledge graph&lt;br/&gt;the console&lt;br/&gt;MCP server"]
     NEXT -.->|"Levels 2-4"| AG["dev agents · ops agents&lt;br/&gt;orchestration"]
       </pre>
 
@@ -2005,7 +2113,8 @@ flowchart TB
           <tr><td class="mono">Day 3</td><td>Reading the API, never the tables</td><td class="mono">Day 4 &mdash; kept ADR-0002's trigger unfired</td></tr>
           <tr><td class="mono">Day 5</td><td>Failures change real configuration</td><td class="mono">Day 18 &mdash; an RCA agent with a real cause to find</td></tr>
           <tr><td class="mono">Day 6</td><td>Content fingerprints on every document</td><td class="mono">Day 7 &mdash; re-embedding costs nothing when nothing changed</td></tr>
-          <tr><td class="mono">Day 7</td><td>The engine is a parameter, not a commitment</td><td class="mono">Day 8 &mdash; a console that switches models live</td></tr>
+          <tr><td class="mono">Day 7</td><td>The engine is a parameter, not a commitment</td><td class="mono">Day 8 &mdash; six retrieval configurations behind one command</td></tr>
+          <tr><td class="mono">Day 8</td><td>An adversarial answer key, graded before any system ran</td><td class="mono">Day 9 on &mdash; every retrieval change is an experiment, not an argument</td></tr>
         </tbody>
       </table>
       </div>
@@ -2021,13 +2130,14 @@ flowchart TB
         <li>A quality gate that measured itself and passed</li>
         <li>Line endings that would have made every fingerprint meaningless</li>
         <li>A database that quietly deleted data while every test agreed it was fine</li>
+        <li>A reranker that had never once run, hidden behind a degrade path working exactly as designed</li>
       </ul>
 
       <p>I found none of these by thinking carefully. I found every one of them by running the real thing under real conditions and looking hard at what came back.</p>
 
       <p>Which is, in the end, the whole argument I'm making. <strong>An AI that writes code quickly is only useful if something can prove the code is right.</strong> That proof cannot come from a fixture, a mock, or a demo that worked once on camera. It has to come from the real system, misbehaving in real ways, measured by numbers I publish whether they flatter me or not.</p>
 
-      <p><strong>Twenty-three days remain, and this page grows with them.</strong> Level 1 finishes with hybrid retrieval, a knowledge graph built from the code's own structure, and an MCP server that lets any AI client query this project's knowledge directly. Then the agents arrive &mdash; and every one of them gets a number next to it.</p>
+      <p><strong>Twenty-two days remain, and this page grows with them.</strong> Level 1 finishes with a knowledge graph built from the code's own structure and an MCP server that lets any AI client query this project's knowledge directly &mdash; each measured against an answer key like the one Day 8 built. Then the agents arrive, and every one of them gets a number next to it.</p>
     </div>
   </section>
 
@@ -2037,7 +2147,7 @@ flowchart TB
 
 <footer>
   <div class="wrap">
-    <p><b>BELLWETHER</b> · DAY 07 / 30 · BUILT IN PUBLIC · <a href="index.html">back to the build log</a></p>
+    <p><b>BELLWETHER</b> · DAY 08 / 30 · BUILT IN PUBLIC · <a href="index.html">back to the build log</a></p>
     <p>An independent open-source project, not affiliated with or endorsed by Netflix.</p>
   </div>
 </footer>
