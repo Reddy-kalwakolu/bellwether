@@ -31,6 +31,12 @@ def dcg(gains: Sequence[int]) -> float:
 def _first_seen(ranked_ids: Sequence[str]) -> list[str]:
     """The ranking with later repeats of a chunk removed, order preserved.
 
+    Applied by all three metrics, not just nDCG. Fusion dedupes so a duplicate cannot
+    reach them today — but "it cannot happen" was the argument for leaving nDCG
+    unguarded, and nDCG could exceed 1.0 until it was. Three metrics that disagreed
+    about what "the top k" contains would be a worse bug than the one that prompted
+    this.
+
     nDCG is defined over distinct documents, and the ideal ranking is built from the
     distinct judged chunks — so a duplicate in the actual ranking counts a gain the
     ideal never can, which can push the ratio above 1.0. Fusion already dedupes by
@@ -65,13 +71,13 @@ def recall_at_k(
     relevant = {chunk_id for chunk_id, grade in judgements.items() if grade >= RELEVANT_FROM}
     if not relevant:
         return 0.0
-    found = relevant & set(ranked_ids[:k])
+    found = relevant & set(_first_seen(ranked_ids)[:k])
     return len(found) / len(relevant)
 
 
 def mrr(ranked_ids: Sequence[str], judgements: Mapping[str, int], k: int = DEFAULT_K) -> float:
     """One over the rank of the first relevant chunk, or zero if there is none."""
-    for rank, chunk_id in enumerate(ranked_ids[:k], start=1):
+    for rank, chunk_id in enumerate(_first_seen(ranked_ids)[:k], start=1):
         if judgements.get(chunk_id, 0) >= RELEVANT_FROM:
             return 1 / rank
     return 0.0
