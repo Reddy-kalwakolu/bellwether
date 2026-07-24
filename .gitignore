@@ -10,4 +10,11 @@ htmlcov/
 .env
 *.egg-info/
 dist/
-data/
+# The corpus and the vectors are build output. The gold set is not — it is the
+# answer key the retrieval numbers are measured against, and a published number
+# whose answer key is untracked is a number nobody can check.
+#
+# `data/*` rather than `data/`: git will not descend into a directory ignored by a
+# bare rule, so the negation below would never be consulted.
+data/*
+!data/gold/
