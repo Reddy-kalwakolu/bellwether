@@ -78,11 +78,22 @@ def env_model(variable: str, fallback: str) -> str:
 
 
 def parse_structured(backend: str, text: str) -> object:
-    """Decode a structured response, or fail loudly naming the backend."""
+    """Decode a structured response, or fail loudly naming the backend.
+
+    Text that *starts* like JSON and fails to parse is almost always a reply cut off
+    at `max_tokens`, not a model ignoring its schema — and calling that "not JSON"
+    sends you looking for the wrong bug. It cost 25 of 26 reranks once already.
+    """
     try:
         return json.loads(text)
     except json.JSONDecodeError as error:
-        raise LLMError(f"{backend} returned text that is not JSON: {text[:200]}") from error
+        truncated = text.lstrip().startswith(("[", "{"))
+        why = (
+            "looks like valid JSON truncated mid-value — raise max_tokens"
+            if truncated
+            else "is not JSON"
+        )
+        raise LLMError(f"{backend} returned text that {why}: {text[:200]}") from error
 
 
 def httpx_post(timeout_seconds: float = 60.0) -> HttpPost:

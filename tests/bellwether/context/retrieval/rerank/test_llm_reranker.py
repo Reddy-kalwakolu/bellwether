@@ -7,7 +7,7 @@ from typing import Any
 
 from bellwether.context.embedders.base import UsageRecord
 from bellwether.context.retrieval.rerank import RANKING_SCHEMA, LLMReranker
-from bellwether.context.retrieval.rerank.llm import build_prompt
+from bellwether.context.retrieval.rerank.llm import RERANK_MAX_TOKENS, build_prompt
 from bellwether.context.vectors import SearchHit
 from bellwether.llm import LLMError
 from bellwether.llm.base import LLMResponse, ModelSpec
@@ -65,6 +65,7 @@ class FakeClient:
         self.data = data
         self.error = error
         self.prompts: list[str] = []
+        self.max_tokens: list[int] = []
 
     @property
     def spec(self) -> ModelSpec:
@@ -83,6 +84,7 @@ class FakeClient:
 
     def complete(self, prompt: str, schema: dict[str, Any], max_tokens: int = 2048) -> LLMResponse:
         self.prompts.append(prompt)
+        self.max_tokens.append(max_tokens)
         if self.error is not None:
             raise self.error
         return LLMResponse(
@@ -153,6 +155,17 @@ def test_empty_input_reranks_to_empty_without_calling_the_backend() -> None:
     result = LLMReranker(client).rerank("anything", [], limit=5)
     assert result.hits == []
     assert client.prompts == []
+
+
+def test_it_asks_for_far_more_output_than_the_default() -> None:
+    # A chunk_id here is a full path, so twenty pretty-printed entries past a model
+    # that spends output budget thinking runs to ~5,000 tokens. The 2,048 default
+    # truncated the JSON mid-array and the reranker degraded on 25 of 26 real
+    # queries — silently, because a truncated reply raises like a malformed one.
+    client = FakeClient(data=[])
+    LLMReranker(client).rerank("q", [_hit("a", 0.9)], limit=1)
+    assert client.max_tokens == [RERANK_MAX_TOKENS]
+    assert RERANK_MAX_TOKENS >= 8192
 
 
 def test_the_prompt_names_every_candidate_and_the_query() -> None:

@@ -26,6 +26,14 @@ from bellwether.llm import LLMClient, LLMError
 
 CANDIDATE_DEPTH = 20
 
+# The response needs one entry per candidate, and a `chunk_id` here is a full path —
+# `docs/superpowers/plans/2026-07-21-level0-day5-traffic-simulator.md#0047` is ~20
+# tokens on its own. Twenty of those, pretty-printed, past a flash model that spends
+# output budget on thinking before it answers, measured at ~5,000 tokens. The 2,048
+# default truncated the JSON mid-array on every real query: the reply parsed as "not
+# JSON", raised, and degraded to the fused order — silently, and on 25 of 26 queries.
+RERANK_MAX_TOKENS = 8192
+
 # How much of each chunk the model sees. Enough to judge, short enough that twenty
 # candidates fit in one call without the bill becoming the story.
 SNIPPET_CHARS = 600
@@ -100,7 +108,9 @@ class LLMReranker:
         tail = list(hits[self.candidate_depth :])
 
         try:
-            response = self.client.complete(build_prompt(query, window), RANKING_SCHEMA)
+            response = self.client.complete(
+                build_prompt(query, window), RANKING_SCHEMA, RERANK_MAX_TOKENS
+            )
         except LLMError:
             # Degrade to what we were given. See the module docstring.
             return RerankResult(hits=list(hits[:limit]), usage=None)
