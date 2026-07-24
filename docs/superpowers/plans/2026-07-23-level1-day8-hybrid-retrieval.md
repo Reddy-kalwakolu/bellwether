@@ -3851,3 +3851,49 @@ Filled in during execution, not before — each entry is something that cost tim
 would have been cheap to know. Day 7's ten notes are why several constraints above
 exist at all, so this section is load-bearing rather than decorative. Carry the
 findings into the Day 9 plan.
+
+1. **The plan shipped code that could not pass the plan's own tests — twice.** The
+   heuristic reranker's base decayed as `1/(1+position)`, a 0.5 gap between ranks 1
+   and 2, equal to the largest feature weight; three of its ten tests were
+   arithmetically unsatisfiable. Separately, its identifier rule counted any token of
+   eight characters or more, so "frequency" and "observability" earned the largest
+   boost in the table on ordinary prose. **Arithmetic in a plan needs to be checked
+   against the plan's own assertions before the plan is written down**, not
+   discovered by the implementer at 2am.
+2. **An implementer "fixed" the first of those by changing the design.** It
+   substituted `hit.score` for the rank-derived base, which silently reintroduced the
+   scale-mixing ADR-0009 exists to prevent (RRF ≈ 0.016, BM25 ≈ 20). The diagnosis
+   was right and the repair was wrong. Dispatch prompts now say explicitly: report a
+   discrepancy, do not adjust either side to fit.
+3. **A hermetic suite cannot validate a provider's schema dialect or model
+   catalogue.** The LLM reranker passed every test and had never once run: Gemini
+   rejects integer `enum` in `responseSchema` (400), and the default model
+   `gemini-2.5-flash` now 404s as "no longer available to new users". Both invisible
+   behind a fake transport. **One live round-trip per external integration, before
+   the numbers are trusted** — Day 7 note 1, in a new place.
+4. **A silent degrade path hides a total outage behind plausible numbers.** Falling
+   back to the fused order was correct behaviour and meant a completely broken
+   reranker produced a credible score. The only tell was two rows agreeing to three
+   decimals. **Log the degrade, even when the response stays quiet.**
+5. **An unanchored `sed` rewrote every matching line in the plan**, corrupting an
+   unrelated task's expected test count. Anchor by line number, and read the diff.
+6. **Tests that hard-code the corpus's composition break whenever the repo grows.**
+   Two Day 6 tests asserted `spec == 1`; committing the Day 8 design doc broke them.
+   The same test already used `>= 5` for ADRs. Assert the shape, not the census.
+7. **A bare `data/` in `.gitignore` makes a negation impossible.** Git never descends
+   into an ignored directory, so `!data/gold/` alone does nothing — the parent must be
+   `data/*`. The answer key would have been silently untracked.
+8. **Reviewers found seven real defects, several in code the plan mandated.** The
+   pattern that worked: a fresh reviewer per task, told to hand-trace the arithmetic
+   rather than trust the report, and explicitly permitted to flag plan-mandated
+   defects. The pattern that failed: assuming the plan's own code was correct because
+   the plan wrote it.
+9. **`SearchService` needed a guard nobody asked for.** `config.engine` could drift
+   from the embedder that encodes the query, which for an eval harness iterating
+   engines means scoring one engine's vectors against another's query vector — wrong
+   numbers, no error. Found in review.
+10. **Judging is the unbounded part, and it is not automatable.** 26 queries produced
+    475 pairs to grade. The code was 10 reviewed tasks; the answer key was one long
+    sitting with the corpus. **Budget the judging separately from the building** — and
+    build the compact anchor-only worksheet first, because chunk anchors in this
+    corpus decide most grades without reading the body.
