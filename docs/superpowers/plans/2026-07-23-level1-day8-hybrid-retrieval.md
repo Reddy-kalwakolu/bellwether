@@ -2727,6 +2727,12 @@ def test_an_empty_ranking_scores_zero_everywhere() -> None:
     assert ndcg_at_k([], JUDGEMENTS) == 0.0
     assert recall_at_k([], JUDGEMENTS) == 0.0
     assert mrr([], JUDGEMENTS) == 0.0
+
+
+def test_ndcg_never_exceeds_one_on_a_duplicated_ranking() -> None:
+    # A repeated chunk must not count its gain twice — the ideal ranking is built
+    # from distinct judged chunks, so double-counting would push the ratio past 1.0.
+    assert ndcg_at_k(["a", "a"], {"a": 2}, k=2) == pytest.approx(1.0)
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -2770,11 +2776,29 @@ def dcg(gains: Sequence[int]) -> float:
     return sum(gain / math.log2(rank + 1) for rank, gain in enumerate(gains, start=1))
 
 
+def _first_seen(ranked_ids: Sequence[str]) -> list[str]:
+    """The ranking with later repeats of a chunk removed, order preserved.
+
+    nDCG is defined over distinct documents, and the ideal ranking is built from the
+    distinct judged chunks — so a duplicate in the actual ranking counts a gain the
+    ideal never can, which can push the ratio above 1.0. Fusion already dedupes by
+    chunk_id, so this should not fire in practice; keeping the metric correct for the
+    case it can't see is cheaper than trusting every future caller to.
+    """
+    seen: set[str] = set()
+    unique: list[str] = []
+    for chunk_id in ranked_ids:
+        if chunk_id not in seen:
+            seen.add(chunk_id)
+            unique.append(chunk_id)
+    return unique
+
+
 def ndcg_at_k(
     ranked_ids: Sequence[str], judgements: Mapping[str, int], k: int = DEFAULT_K
 ) -> float:
-    """nDCG@k — graded and rank-aware. Unjudged ids score zero."""
-    gains = [judgements.get(chunk_id, 0) for chunk_id in ranked_ids[:k]]
+    """nDCG@k — graded and rank-aware. Unjudged ids score zero, duplicates count once."""
+    gains = [judgements.get(chunk_id, 0) for chunk_id in _first_seen(ranked_ids)[:k]]
     ideal = sorted(judgements.values(), reverse=True)[:k]
     best = dcg(ideal)
     if best == 0:
@@ -2806,7 +2830,7 @@ def mrr(ranked_ids: Sequence[str], judgements: Mapping[str, int], k: int = DEFAU
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `python -m uv run pytest tests/bellwether/eval/test_metrics.py -v`
-Expected: PASS, 14 passed
+Expected: PASS, 15 passed
 
 - [ ] **Step 5: Run the gates, each unpiped**
 
