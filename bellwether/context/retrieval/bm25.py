@@ -32,7 +32,7 @@ class BM25Params:
 
 
 class BM25Index:
-    """An in-memory inverted index. The corpus is 585 chunks; this is enough."""
+    """An in-memory inverted index. The corpus is a few hundred chunks; this is enough."""
 
     def __init__(self, chunks: Sequence[Chunk], params: BM25Params | None = None) -> None:
         self.params = params or BM25Params()

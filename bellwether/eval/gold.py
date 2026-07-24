@@ -61,12 +61,22 @@ class GoldQuery(BaseModel):
 
 
 class GoldSet(BaseModel):
-    """Every judged query, plus how and when it was built."""
+    """Every judged query, plus how and when it was built.
+
+    `corpus_commit` and `corpus_chunks` pin what the key was judged against. A
+    `chunk_id` is `doc_id#<positional index>`, so the answer key only means what it
+    meant at one revision: add a document and the same ids survive, but new chunks
+    become retrievable that nobody graded, and the scores drift. Recording the
+    revision is the difference between a published number a third party can
+    re-derive and one they can only take on trust.
+    """
 
     version: str
     created_at: datetime
     notes: str
     queries: list[GoldQuery]
+    corpus_commit: str | None = None
+    corpus_chunks: int | None = None
 
     @model_validator(mode="after")
     def _ids_are_unique(self) -> GoldSet:
