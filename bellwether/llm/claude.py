@@ -143,6 +143,11 @@ def _extract(body: dict[str, Any]) -> tuple[str, object]:
         raise LLMError(f"claude returned no content: {body}")
 
     for block in blocks:
+        # Guarded for the same reason the non-200 branch above is: a content list
+        # holding anything but dicts would otherwise raise AttributeError rather than
+        # the typed LLMError this module promises.
+        if not isinstance(block, dict):
+            continue
         if block.get("type") == "tool_use":
             payload = block.get("input", {})
             return str(payload), payload.get("ranking", payload)
