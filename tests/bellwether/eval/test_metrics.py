@@ -71,3 +71,9 @@ def test_an_empty_ranking_scores_zero_everywhere() -> None:
     assert ndcg_at_k([], JUDGEMENTS) == 0.0
     assert recall_at_k([], JUDGEMENTS) == 0.0
     assert mrr([], JUDGEMENTS) == 0.0
+
+
+def test_ndcg_never_exceeds_one_on_a_duplicated_ranking() -> None:
+    # A repeated chunk must not count its gain twice — the ideal ranking is built
+    # from distinct judged chunks, so double-counting would push the ratio past 1.0.
+    assert ndcg_at_k(["a", "a"], {"a": 2}, k=2) == pytest.approx(1.0)

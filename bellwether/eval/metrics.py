@@ -28,11 +28,29 @@ def dcg(gains: Sequence[int]) -> float:
     return sum(gain / math.log2(rank + 1) for rank, gain in enumerate(gains, start=1))
 
 
+def _first_seen(ranked_ids: Sequence[str]) -> list[str]:
+    """The ranking with later repeats of a chunk removed, order preserved.
+
+    nDCG is defined over distinct documents, and the ideal ranking is built from the
+    distinct judged chunks — so a duplicate in the actual ranking counts a gain the
+    ideal never can, which can push the ratio above 1.0. Fusion already dedupes by
+    chunk_id, so this should not fire in practice; keeping the metric correct for the
+    case it can't see is cheaper than trusting every future caller to.
+    """
+    seen: set[str] = set()
+    unique: list[str] = []
+    for chunk_id in ranked_ids:
+        if chunk_id not in seen:
+            seen.add(chunk_id)
+            unique.append(chunk_id)
+    return unique
+
+
 def ndcg_at_k(
     ranked_ids: Sequence[str], judgements: Mapping[str, int], k: int = DEFAULT_K
 ) -> float:
-    """nDCG@k — graded and rank-aware. Unjudged ids score zero."""
-    gains = [judgements.get(chunk_id, 0) for chunk_id in ranked_ids[:k]]
+    """nDCG@k — graded and rank-aware. Unjudged ids score zero, duplicates count once."""
+    gains = [judgements.get(chunk_id, 0) for chunk_id in _first_seen(ranked_ids)[:k]]
     ideal = sorted(judgements.values(), reverse=True)[:k]
     best = dcg(ideal)
     if best == 0:
