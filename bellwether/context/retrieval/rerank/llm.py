@@ -30,13 +30,18 @@ CANDIDATE_DEPTH = 20
 # candidates fit in one call without the bill becoming the story.
 SNIPPET_CHARS = 600
 
+# `relevance` is a bare integer, not an enum. Gemini's responseSchema is a
+# restricted OpenAPI dialect that rejects integer enum values outright (it wants
+# TYPE_STRING), so `enum: [0, 1, 2]` 400s every call and the reranker silently
+# degrades to the fused order — invisible to the hermetic tests, which never touch
+# the real API. The prompt states the 0/1/2 scale; `_grades` clamps anything else.
 RANKING_SCHEMA: dict[str, Any] = {
     "type": "array",
     "items": {
         "type": "object",
         "properties": {
             "chunk_id": {"type": "string"},
-            "relevance": {"type": "integer", "enum": [0, 1, 2]},
+            "relevance": {"type": "integer"},
         },
         "required": ["chunk_id", "relevance"],
     },
@@ -124,6 +129,13 @@ def _grades(data: object) -> dict[str, int]:
             continue
         chunk_id = entry.get("chunk_id")
         relevance = entry.get("relevance")
-        if isinstance(chunk_id, str) and isinstance(relevance, int):
-            grades[chunk_id] = relevance
+        # `bool` is an `int` subclass — exclude it so a stray `true` is not a grade.
+        # Clamp to the 0-2 scale the prompt asks for, now that the schema no longer
+        # enforces it (Gemini rejected the enum that used to).
+        if (
+            isinstance(chunk_id, str)
+            and isinstance(relevance, int)
+            and not isinstance(relevance, bool)
+        ):
+            grades[chunk_id] = max(0, min(2, relevance))
     return grades

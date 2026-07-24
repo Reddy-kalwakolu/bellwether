@@ -6,11 +6,43 @@ from __future__ import annotations
 from typing import Any
 
 from bellwether.context.embedders.base import UsageRecord
-from bellwether.context.retrieval.rerank import LLMReranker
+from bellwether.context.retrieval.rerank import RANKING_SCHEMA, LLMReranker
 from bellwether.context.retrieval.rerank.llm import build_prompt
 from bellwether.context.vectors import SearchHit
 from bellwether.llm import LLMError
 from bellwether.llm.base import LLMResponse, ModelSpec
+
+
+def test_the_relevance_field_carries_no_enum_gemini_rejects() -> None:
+    # Gemini's responseSchema is a restricted OpenAPI dialect that 400s on integer
+    # enums. An enum here would degrade every live Gemini rerank to the fused order,
+    # invisibly to this hermetic suite. Keep it a bare integer.
+    relevance = RANKING_SCHEMA["items"]["properties"]["relevance"]
+    assert relevance == {"type": "integer"}
+    assert "enum" not in relevance
+
+
+def test_a_grade_outside_the_scale_is_clamped_not_trusted() -> None:
+    # The schema no longer constrains the range, so the parser must. A model that
+    # returns 7 or -3 should not out- or under-rank a legitimate 2.
+    client = FakeClient(
+        data=[
+            {"chunk_id": "a", "relevance": 7},
+            {"chunk_id": "b", "relevance": 2},
+            {"chunk_id": "c", "relevance": -3},
+        ]
+    )
+    hits = [_hit("a", 0.9), _hit("b", 0.8), _hit("c", 0.7)]
+    result = LLMReranker(client).rerank("q", hits, limit=3)
+    assert result.hits[0].score == 2.0
+    assert result.hits[-1].score == 0.0
+
+
+def test_a_boolean_relevance_is_not_treated_as_a_grade() -> None:
+    # bool is an int subclass; a stray `true` must not become grade 1.
+    client = FakeClient(data=[{"chunk_id": "a", "relevance": True}])
+    result = LLMReranker(client).rerank("q", [_hit("a", 0.9)], limit=1)
+    assert [h.chunk_id for h in result.hits] == ["a"]
 
 
 def _hit(chunk_id: str, score: float, text: str = "body text") -> SearchHit:

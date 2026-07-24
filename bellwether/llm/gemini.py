@@ -25,9 +25,12 @@ from bellwether.llm.base import (
 
 ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models"
 
-# A starting point, not a verified fact. Override with BELLWETHER_GEMINI_MODEL and
-# confirm against the provider's current model list before publishing any number.
-DEFAULT_MODEL = "gemini-2.5-flash"
+# The `-latest` alias, not a pinned snapshot. `gemini-2.5-flash` 404s for new users
+# ("no longer available") — the exact stale-model trap §4.6 warns against, and it
+# degraded the reranker silently because a failed call falls back to the fused order.
+# The alias always resolves to the current flash model. Override with
+# BELLWETHER_GEMINI_MODEL to pin a snapshot.
+DEFAULT_MODEL = "gemini-flash-latest"
 
 
 class GeminiClient:
